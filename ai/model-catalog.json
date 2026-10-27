@@ -1,7 +1,7 @@
 {
- "version": "2026-10-28.6",
+ "version": "2026-10-28.7",
  "checkedAt": "2026-10-28",
- "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（2026-10-28確認）。トークン節約ポリシー（高モデルは難易度「難」のときだけ・思考レベル自動調整）はユーザー指示で追加（2026-10-28）",
+ "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（2026-10-28確認）。トークン節約ポリシー（高モデルは難易度「難」のときだけ・思考レベル自動調整）はユーザー指示で追加（2026-10-28）。利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由、その他のAIはMuse Web経由",
  "costNote": "costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
  "commander": {
   "name": "ChatGPT（最上位モデル）",
@@ -17,7 +17,7 @@
    "cost": 4,
    "quality": 95,
    "speed": 78,
-   "route": "api",
+   "route": "mac-chatgpt",
    "tier": "high",
    "capScores": {
     "math": 90
@@ -30,7 +30,8 @@
     "review",
     "summary",
     "image"
-   ]
+   ],
+   "note": "利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"
   },
   {
    "key": "gpt-6-1-terra",
@@ -40,7 +41,7 @@
    "cost": 2,
    "quality": 88,
    "speed": 85,
-   "route": "api",
+   "route": "mac-chatgpt",
    "tier": "mid",
    "capScores": {
     "coding": 70,
@@ -53,7 +54,8 @@
     "data",
     "summary",
     "research"
-   ]
+   ],
+   "note": "利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"
   },
   {
    "key": "gpt-6-luna",
@@ -63,7 +65,7 @@
    "cost": 1,
    "quality": 74,
    "speed": 95,
-   "route": "api",
+   "route": "mac-chatgpt",
    "tier": "low",
    "capScores": {
     "coding": 50
@@ -73,7 +75,8 @@
     "translation",
     "data",
     "writing"
-   ]
+   ],
+   "note": "利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"
   },
   {
    "key": "codex",
@@ -83,7 +86,7 @@
    "cost": 5,
    "quality": 93,
    "speed": 72,
-   "route": "codex",
+   "route": "mac-codex",
    "tier": "high",
    "capScores": {
     "math": 70
@@ -92,7 +95,8 @@
     "coding",
     "review",
     "data"
-   ]
+   ],
+   "note": "Macのターミナルで動くため、konpotaは直接起動できない（Mac操作はターミナル系アプリが対象外）。起動はあなたが行い、指示文の用意と結果の受け取りはkonpotaが手伝う（従来の仲介ルールどおり）。"
   },
   {
    "key": "openclaw",
@@ -102,7 +106,7 @@
    "cost": 2,
    "quality": 78,
    "speed": 60,
-   "route": "openclaw",
+   "route": "mac-openclaw",
    "tier": "mid",
    "capScores": {
     "coding": 55
@@ -148,7 +152,7 @@
    "cost": 0,
    "quality": 85,
    "speed": 90,
-   "route": "manual",
+   "route": "web",
    "tier": "low",
    "capScores": {
     "coding": 70
@@ -172,7 +176,7 @@
    "cost": 0,
    "quality": 84,
    "speed": 93,
-   "route": "manual",
+   "route": "web",
    "tier": "low",
    "strongCaps": [
     "summary",
@@ -192,7 +196,7 @@
    "cost": 0,
    "quality": 86,
    "speed": 80,
-   "route": "manual",
+   "route": "web",
    "tier": "mid",
    "strongCaps": [
     "reasoning",
@@ -211,7 +215,7 @@
    "cost": 0,
    "quality": 90,
    "speed": 80,
-   "route": "manual",
+   "route": "web",
    "tier": "mid",
    "capScores": {
     "math": 70

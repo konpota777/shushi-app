@@ -178,10 +178,14 @@ var CAPS=[
 ];
 var CAP_LABEL={}; CAPS.forEach(function(c){CAP_LABEL[c.id]=c.label;});
 var ROUTES={
- api:"OpenAI API / ChatGPTで実行",
- codex:"Codexへ渡す（あなたが実行）",
- openclaw:"OpenClaw（Discord接続済み）へ渡す（Mac）",
- muse:"Muse / konpota へ渡す",
+ "mac-chatgpt":"Mac経由（あなたのChromeのChatGPTで実行）",
+ "mac-codex":"Mac経由（Codex・起動はあなた）",
+ "mac-openclaw":"Mac経由（OpenClaw・Discord接続済み）",
+ api:"OpenAI API（契約がある場合）",
+ codex:"Mac経由（Codex・起動はあなた）",
+ openclaw:"Mac経由（OpenClaw・Discord接続済み）",
+ muse:"Muse / konpota（このチャットで直接実行）",
+ web:"Muse Web経由（konpotaのブラウザでWeb版を操作）",
  manual:"手動で実行",
  other:"その他"
 };
@@ -200,23 +204,23 @@ var KEYWORDS={
 };
 function capScores(strong){var o={};CAPS.forEach(function(c){o[c.id]=strong.indexOf(c.id)>=0?90:40;});o.planning=strong.indexOf("planning")>=0?90:45;return o;}
 var BUILTIN_CATALOG={
- version:"2026-10-28.6",checkedAt:"2026-10-28",
- source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）",
+ version:"2026-10-28.7",checkedAt:"2026-10-28",
+ source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）／ 利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由、その他のAIはMuse Web経由",
  costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
  commander:{name:"ChatGPT（最上位モデル）",modelId:"gpt-6-astra",cost:21},
  models:[
-  {key:"gpt-6-1-sol",name:"GPT-6.1 Sol",provider:"OpenAI",modelId:"gpt-6.1-sol",cost:4,quality:95,speed:78,route:"api",tier:"high",capScores:{math:90},strongCaps:["reasoning","coding","writing","research","review","summary","image"]},
-  {key:"gpt-6-1-terra",name:"GPT-6.1 Terra",provider:"OpenAI",modelId:"gpt-6.1-terra",cost:2,quality:88,speed:85,route:"api",tier:"mid",capScores:{coding:70,math:65,review:65},strongCaps:["reasoning","writing","data","summary","research"]},
-  {key:"gpt-6-luna",name:"GPT-6 Luna",provider:"OpenAI",modelId:"gpt-6-luna",cost:1,quality:74,speed:95,route:"api",tier:"low",capScores:{coding:50},strongCaps:["summary","translation","data","writing"]},
-  {key:"codex",name:"Codex（コーディング専門）",provider:"OpenAI / Codex",modelId:"gpt-5.3-codex",cost:5,quality:93,speed:72,route:"codex",tier:"high",capScores:{math:70},strongCaps:["coding","review","data"]},
-  {key:"openclaw",name:"OpenClaw（Discord接続済み・あなたのMac）",provider:"OpenClaw",modelId:"あなたのDiscordサーバーと接続済みのOpenClaw",cost:2,quality:78,speed:60,route:"openclaw",tier:"mid",capScores:{coding:55},strongCaps:["automation","data","research","summary"],note:"あなたのMacBook Airで動くOpenClaw（ワークスペース /Users/konpota/.openclaw/workspace、WebChatとDiscordで利用）。Discordのチャンネルやボットが絡むタスクはこのOpenClawが担当する。Discordへの実際の送信は、従来どおりあなたの確認後に限る。基盤モデルはMac側の設定依存。"},
+  {key:"gpt-6-1-sol",name:"GPT-6.1 Sol",provider:"OpenAI",modelId:"gpt-6.1-sol",cost:4,quality:95,speed:78,route:"mac-chatgpt",tier:"high",capScores:{math:90},strongCaps:["reasoning","coding","writing","research","review","summary","image"],note:"利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"},
+  {key:"gpt-6-1-terra",name:"GPT-6.1 Terra",provider:"OpenAI",modelId:"gpt-6.1-terra",cost:2,quality:88,speed:85,route:"mac-chatgpt",tier:"mid",capScores:{coding:70,math:65,review:65},strongCaps:["reasoning","writing","data","summary","research"],note:"利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"},
+  {key:"gpt-6-luna",name:"GPT-6 Luna",provider:"OpenAI",modelId:"gpt-6-luna",cost:1,quality:74,speed:95,route:"mac-chatgpt",tier:"low",capScores:{coding:50},strongCaps:["summary","translation","data","writing"],note:"利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"},
+  {key:"codex",name:"Codex（コーディング専門）",provider:"OpenAI / Codex",modelId:"gpt-5.3-codex",cost:5,quality:93,speed:72,route:"mac-codex",tier:"high",capScores:{math:70},strongCaps:["coding","review","data"],note:"Macのターミナルで動くため、konpotaは直接起動できない（Mac操作はターミナル系アプリが対象外）。起動はあなたが行い、指示文の用意と結果の受け取りはkonpotaが手伝う（従来の仲介ルールどおり）。"},
+  {key:"openclaw",name:"OpenClaw（Discord接続済み・あなたのMac）",provider:"OpenClaw",modelId:"あなたのDiscordサーバーと接続済みのOpenClaw",cost:2,quality:78,speed:60,route:"mac-openclaw",tier:"mid",capScores:{coding:55},strongCaps:["automation","data","research","summary"],note:"あなたのMacBook Airで動くOpenClaw（ワークスペース /Users/konpota/.openclaw/workspace、WebChatとDiscordで利用）。Discordのチャンネルやボットが絡むタスクはこのOpenClawが担当する。Discordへの実際の送信は、従来どおりあなたの確認後に限る。基盤モデルはMac側の設定依存。"},
   {key:"muse-konpota",name:"Muse / konpota",provider:"Muse（Meta）",modelId:"Muse Spark（Museアプリ側で自動更新）",cost:2,quality:87,speed:76,route:"muse",tier:"mid",capScores:{coding:70,math:70},strongCaps:["planning","writing","reasoning","review","summary","research"]},
  ],
  recommendations:[
-  {key:"gemini-3-flash",name:"Gemini 3 Flash",provider:"Google",modelId:"gemini-3-flash-preview",cost:0,quality:85,speed:90,route:"manual",tier:"low",capScores:{coding:70},strongCaps:["research","image","data","summary","reasoning"],freeNote:"無料枠あり：Gemini APIに無料ティア（公式開発者ガイドで明記）。Google AI Studioでは上位のPro系も無料で試せる。入口はAI Studio / Geminiアプリ",reason:"調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",source:"Google AI for Developers 公式（2026-10-28確認）"},
-  {key:"claude-haiku-5-5",name:"Claude Haiku 5.5",provider:"Anthropic",modelId:"claude-haiku-5-5",cost:0,quality:84,speed:93,route:"manual",tier:"low",strongCaps:["summary","coding","writing","data"],freeNote:"無料利用可：FreeプランでもClaude.aiで選択できる（公式）。同シリーズの最新 Sonnet 5.5（2026-09-28発表）の無料範囲は未確認",reason:"最速クラスの小型モデル。要約や下書き、サブタスクの大量処理を無料枠で回す担当に向く",source:"Anthropic 公式（2026-10-28確認）"},
-  {key:"deepseek-v4-flash",name:"DeepSeek V4 Flash",provider:"DeepSeek",modelId:"deepseek-flash",cost:0,quality:86,speed:80,route:"manual",tier:"mid",strongCaps:["reasoning","math","coding"],freeNote:"公式チャット（chat.deepseek.com / アプリ）は無料で使える。APIは無料ではなく従量課金だが、公式料金でも最安級（入力$0.15/100万トークン〜・オフピーク）",reason:"推論・数学・コーディングが強い。指揮官やSolとは別系統の意見役（セカンドオピニオン）として相互検証の幅が広がる",source:"DeepSeek API Docs 公式（2026-10-28確認）"},
-  {key:"grok-4-7",name:"Grok 4.7",provider:"xAI",modelId:"grok-4.7",cost:0,quality:90,speed:80,route:"manual",tier:"mid",capScores:{math:70},strongCaps:["research","reasoning","coding"],freeNote:"無料枠あり：XのFreeプラン（$0）でGrokへの毎日のアクセス（上限あり）が含まれる（公式）。APIは従量課金で無料ではない",reason:"X上のリアルタイム情報の調査が本命。投資の材料集めで、他のAIが拾えない速報・話題を拾える",source:"xAI 公式（2026-10-28確認）"}
+  {key:"gemini-3-flash",name:"Gemini 3 Flash",provider:"Google",modelId:"gemini-3-flash-preview",cost:0,quality:85,speed:90,route:"web",tier:"low",capScores:{coding:70},strongCaps:["research","image","data","summary","reasoning"],freeNote:"無料枠あり：Gemini APIに無料ティア（公式開発者ガイドで明記）。Google AI Studioでは上位のPro系も無料で試せる。入口はAI Studio / Geminiアプリ",reason:"調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",source:"Google AI for Developers 公式（2026-10-28確認）"},
+  {key:"claude-haiku-5-5",name:"Claude Haiku 5.5",provider:"Anthropic",modelId:"claude-haiku-5-5",cost:0,quality:84,speed:93,route:"web",tier:"low",strongCaps:["summary","coding","writing","data"],freeNote:"無料利用可：FreeプランでもClaude.aiで選択できる（公式）。同シリーズの最新 Sonnet 5.5（2026-09-28発表）の無料範囲は未確認",reason:"最速クラスの小型モデル。要約や下書き、サブタスクの大量処理を無料枠で回す担当に向く",source:"Anthropic 公式（2026-10-28確認）"},
+  {key:"deepseek-v4-flash",name:"DeepSeek V4 Flash",provider:"DeepSeek",modelId:"deepseek-flash",cost:0,quality:86,speed:80,route:"web",tier:"mid",strongCaps:["reasoning","math","coding"],freeNote:"公式チャット（chat.deepseek.com / アプリ）は無料で使える。APIは無料ではなく従量課金だが、公式料金でも最安級（入力$0.15/100万トークン〜・オフピーク）",reason:"推論・数学・コーディングが強い。指揮官やSolとは別系統の意見役（セカンドオピニオン）として相互検証の幅が広がる",source:"DeepSeek API Docs 公式（2026-10-28確認）"},
+  {key:"grok-4-7",name:"Grok 4.7",provider:"xAI",modelId:"grok-4.7",cost:0,quality:90,speed:80,route:"web",tier:"mid",capScores:{math:70},strongCaps:["research","reasoning","coding"],freeNote:"無料枠あり：XのFreeプラン（$0）でGrokへの毎日のアクセス（上限あり）が含まれる（公式）。APIは従量課金で無料ではない",reason:"X上のリアルタイム情報の調査が本命。投資の材料集めで、他のAIが拾えない速報・話題を拾える",source:"xAI 公式（2026-10-28確認）"}
  ]
 };
 function catalogToModels(cat){
@@ -334,7 +338,7 @@ function buildPlan(task,models,commander){
           return out;
         }
       }
-      out.assigneeName=commander.name;out.route="ChatGPT（指揮官）";out.isHighUse=true;
+      out.assigneeName=commander.name;out.route="Mac経由（ChatGPT・指揮官）";out.isHighUse=true;
       out.effort=effortFor(diff,sig.critical,true);
       out.reason="指揮官が担当（計画と統合）。難易度 "+DIFF_LABEL[diff]+" に合わせ "+EFFORT_LABEL[out.effort]+" に自動調整";
       out.cost=Math.round(cmdCost*(s.factor||1));
