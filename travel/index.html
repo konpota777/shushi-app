@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>旅行計画アプリ（端末保存版）</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1a1d21;--muted:#6b7280;--border:#e2e5ea;--accent:#0e7c66;--warn:#c0392b;--chip:#e6f4f1}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1e232b;--text:#e8eaed;--muted:#9aa3af;--border:#333a45;--accent:#3ec6ab;--chip:#173a33}}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding:16px 14px 60px}
+h1{font-size:20px;margin:6px 0 2px}h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;margin:14px 0 6px}
+section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:12px 0}
+.sub{color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{justify-content:space-between}
+button{font:inherit;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{padding:2px 8px;font-size:13px}
+button.danger{color:var(--warn)}
+input,select,textarea{font:inherit;border:1px solid var(--border);border-radius:8px;padding:7px 9px;background:var(--card);color:var(--text);width:100%}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:560px){.grid3{grid-template-columns:1fr 1fr}}
+.big{font-size:22px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+td.num,th.num{text-align:right;white-space:nowrap}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px}
+.trip{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;cursor:pointer}
+.trip.on{border-color:var(--accent);background:var(--chip)}
+.done{text-decoration:line-through;color:var(--muted)}
+.bar{height:8px;background:var(--chip);border-radius:4px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>旅行計画</h1>
+<div class="sub">端末保存版：データはこの端末のブラウザ内にだけ保存されます。たまに「データを書き出す」でバックアップしてください。</div>
+
+<section>
+  <h2>新しい旅行を作る</h2>
+  <div class="grid">
+    <div><label>旅行名</label><input type="text" id="tName" placeholder="例：京都旅行"></div>
+    <div><label>行き先</label><input type="text" id="tDest" placeholder="例：京都"></div>
+    <div><label>出発日</label><input type="date" id="tStart"></div>
+    <div><label>帰着日</label><input type="date" id="tEnd"></div>
+    <div><label>予算（円）</label><input type="number" id="tBudget" min="0" step="1" inputmode="numeric" placeholder="例：80000"></div>
+    <div><label>メモ</label><input type="text" id="tMemo"></div>
+  </div>
+  <div style="margin-top:10px"><button class="primary" onclick="createTrip()">旅行を追加</button></div>
+</section>
+
+<section><h2>旅行の一覧</h2><div id="tripList"></div></section>
+
+<div id="detail" style="display:none">
+  <section>
+    <h2 id="dTitle"></h2>
+    <div id="dSummary"></div>
+    <div style="margin-top:10px"><button class="danger" onclick="deleteTrip()">この旅行を削除</button></div>
+  </section>
+
+  <section>
+    <h2 id="itemFormTitle">予定を追加</h2>
+    <div class="grid">
+      <div><label>日付</label><input type="date" id="iDate"></div>
+      <div><label>時刻</label><input type="time" id="iTime"></div>
+      <div><label>内容</label><input type="text" id="iTitle" placeholder="例：清水寺"></div>
+      <div><label>場所</label><input type="text" id="iPlace"></div>
+      <div><label>カテゴリ</label><select id="iCategory"><option>移動</option><option>宿泊</option><option>食事</option><option>観光</option><option>買い物</option><option>その他</option></select></div>
+      <div><label>費用の目安（円）</label><input type="number" id="iCost" min="0" step="1" inputmode="numeric"></div>
+      <div><label>メモ</label><input type="text" id="iMemo"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="iSubmit" onclick="submitItem()">追加する</button>
+      <button id="iCancel" style="display:none" onclick="cancelItemEdit()">編集をやめる</button>
+    </div>
+  </section>
+
+  <section><h2>行程表</h2><div id="itinerary"></div></section>
+
+  <section>
+    <h2>持ち物・準備チェックリスト</h2>
+    <div class="row">
+      <div style="flex:1"><input type="text" id="cText" placeholder="例：パスポート、充電器"></div>
+      <button class="primary" onclick="addCheck()">追加</button>
+    </div>
+    <div id="checkList" style="margin-top:8px"></div>
+  </section>
+</div>
+
+<section>
+  <h2>データの書き出し・読み込み（引っ越し・バックアップ）</h2>
+  <div class="row">
+    <button onclick="exportData()">データを書き出す（JSON）</button>
+    <label style="margin:0">JSONを読み込む<input type="file" id="importFile" style="display:none" onchange="importData(event)"></label>
+  </div>
+  <p class="sub">読み込むと今この端末にあるデータは置き換わります。</p>
+</section>
+</main>
+<script>
+"use strict";
+var STORE_KEY="travel-planner-v1";
+var state={trips:[]};
+var currentTripId=null;
+var editingItemId=null;
+function loadState(){try{var raw=localStorage.getItem(STORE_KEY);if(raw){var p=JSON.parse(raw);if(p&&Array.isArray(p.trips))state=p;}}catch(e){}}
+function saveState(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){alert("保存できませんでした");}}
+function nextId(list){var m=0;list.forEach(function(x){if(x.id>m)m=x.id;});return m+1;}
+function yen(n){return (n<0?"-":"")+"¥"+Math.abs(Math.round(n)).toLocaleString("ja-JP");}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+/* ===== 集計ロジック（DOM非依存） ===== */
+function tripDays(trip){
+  var days=[];
+  if(trip.start&&trip.end){
+    var d=new Date(trip.start+"T00:00:00"),end=new Date(trip.end+"T00:00:00");
+    while(d<=end){days.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));d.setDate(d.getDate()+1);}
+  }
+  trip.items.forEach(function(it){if(days.indexOf(it.date)<0)days.push(it.date);});
+  days.sort();
+  return days;
+}
+function tripTotals(trip){
+  var total=0,byCat={};
+  trip.items.forEach(function(it){total+=it.cost||0;byCat[it.category]=(byCat[it.category]||0)+(it.cost||0);});
+  return {total:total,byCategory:byCat,count:trip.items.length,
+    budget:trip.budget||0,remaining:(trip.budget||0)-total,
+    checkDone:trip.checks.filter(function(c){return c.done;}).length,checkTotal:trip.checks.length};
+}
+function itemsForDate(trip,date){
+  return trip.items.filter(function(it){return it.date===date;}).sort(function(a,b){
+    var ta=a.time||"99:99",tb=b.time||"99:99";return ta<tb?-1:(ta>tb?1:a.id-b.id);});
+}
+
+/* ===== 旅行 ===== */
+function currentTrip(){var t=null;state.trips.forEach(function(x){if(x.id===currentTripId)t=x;});return t;}
+function createTrip(){
+  var name=document.getElementById("tName").value.trim();
+  if(!name){alert("旅行名を入れてください");return;}
+  var trip={id:nextId(state.trips),name:name,destination:document.getElementById("tDest").value.trim(),
+    start:document.getElementById("tStart").value,end:document.getElementById("tEnd").value,
+    budget:parseInt(document.getElementById("tBudget").value,10)||0,memo:document.getElementById("tMemo").value.trim(),items:[],checks:[]};
+  state.trips.push(trip);currentTripId=trip.id;
+  document.getElementById("tName").value="";document.getElementById("tDest").value="";document.getElementById("tBudget").value="";document.getElementById("tMemo").value="";
+  saveState();render();
+}
+function selectTrip(id){currentTripId=id;editingItemId=null;render();}
+function deleteTrip(){var t=currentTrip();if(!t)return;if(!confirm("旅行「"+t.name+"」を削除しますか？"))return;state.trips=state.trips.filter(function(x){return x.id!==t.id;});currentTripId=state.trips.length?state.trips[0].id:null;saveState();render();}
+
+/* ===== 予定 ===== */
+function submitItem(){
+  var t=currentTrip();if(!t)return;
+  var date=document.getElementById("iDate").value||t.start||"";
+  var title=document.getElementById("iTitle").value.trim();
+  if(!title){alert("内容を入れてください");return;}
+  var data={date:date,time:document.getElementById("iTime").value,title:title,place:document.getElementById("iPlace").value.trim(),
+    category:document.getElementById("iCategory").value,cost:parseInt(document.getElementById("iCost").value,10)||0,memo:document.getElementById("iMemo").value.trim()};
+  if(editingItemId!=null){
+    t.items.forEach(function(it){if(it.id===editingItemId){for(var k in data)it[k]=data[k];}});
+    editingItemId=null;document.getElementById("itemFormTitle").textContent="予定を追加";document.getElementById("iSubmit").textContent="追加する";document.getElementById("iCancel").style.display="none";
+  }else{
+    data.id=nextId(t.items);t.items.push(data);
+  }
+  document.getElementById("iTitle").value="";document.getElementById("iPlace").value="";document.getElementById("iCost").value="";document.getElementById("iMemo").value="";
+  saveState();render();
+}
+function editItem(id){var t=currentTrip();if(!t)return;var it=null;t.items.forEach(function(x){if(x.id===id)it=x;});if(!it)return;
+  editingItemId=id;
+  document.getElementById("iDate").value=it.date;document.getElementById("iTime").value=it.time||"";document.getElementById("iTitle").value=it.title;
+  document.getElementById("iPlace").value=it.place||"";document.getElementById("iCategory").value=it.category;document.getElementById("iCost").value=it.cost||"";document.getElementById("iMemo").value=it.memo||"";
+  document.getElementById("itemFormTitle").textContent="予定を編集";document.getElementById("iSubmit").textContent="保存する";document.getElementById("iCancel").style.display="";
+  window.scrollTo({top:document.getElementById("detail").offsetTop,behavior:"smooth"});}
+function cancelItemEdit(){editingItemId=null;document.getElementById("itemFormTitle").textContent="予定を追加";document.getElementById("iSubmit").textContent="追加する";document.getElementById("iCancel").style.display="none";}
+function deleteItem(id){var t=currentTrip();if(!t)return;if(!confirm("この予定を削除しますか？"))return;t.items=t.items.filter(function(x){return x.id!==id;});saveState();render();}
+
+/* ===== チェックリスト ===== */
+function addCheck(){var t=currentTrip();if(!t)return;var text=document.getElementById("cText").value.trim();if(!text)return;t.checks.push({id:nextId(t.checks),text:text,done:false});document.getElementById("cText").value="";saveState();render();}
+function toggleCheck(id){var t=currentTrip();if(!t)return;t.checks.forEach(function(c){if(c.id===id)c.done=!c.done;});saveState();render();}
+function deleteCheck(id){var t=currentTrip();if(!t)return;t.checks=t.checks.filter(function(c){return c.id!==id;});saveState();render();}
+
+/* ===== データ ===== */
+function exportData(){var blob=new Blob([JSON.stringify(state,null,1)],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="travel-data-export.json";a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},2000);}
+function importData(ev){var f=ev.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var p=JSON.parse(r.result);if(!p||!Array.isArray(p.trips))throw new Error("bad");if(!confirm("読み込むと今この端末にあるデータは置き換わります。続けますか？"))return;state=p;currentTripId=state.trips.length?state.trips[0].id:null;saveState();render();alert("読み込みました");}catch(e){alert("読み込めませんでした（JSON形式を確認してください）");}};r.readAsText(f);}
+
+/* ===== 描画 ===== */
+function render(){
+  var list=document.getElementById("tripList");
+  if(!state.trips.length){list.innerHTML="<p class='sub'>まだ旅行がありません。上のフォームから作ってください。</p>";}
+  else{
+    list.innerHTML=state.trips.map(function(t){
+      var s=tripTotals(t);
+      return "<div class='trip"+(t.id===currentTripId?" on":"")+"' onclick='selectTrip("+t.id+")'><strong>"+esc(t.name)+"</strong>"+
+      (t.destination?" <span class='chip'>"+esc(t.destination)+"</span>":"")+
+      "<div class='sub'>"+(t.start?esc(t.start):"日付未定")+(t.end?" 〜 "+esc(t.end):"")+"／予定 "+s.count+"件／費用目安 "+yen(s.total)+(s.budget?"／予算 "+yen(s.budget):"")+"</div></div>";
+    }).join("");
+  }
+  var t=currentTrip();
+  document.getElementById("detail").style.display=t?"":"none";
+  if(!t)return;
+  document.getElementById("dTitle").textContent=t.name+(t.destination?"（"+t.destination+"）":"");
+  var s=tripTotals(t);
+  var days=tripDays(t);
+  var catHtml=Object.keys(s.byCategory).sort(function(a,b){return s.byCategory[b]-s.byCategory[a];}).map(function(c){
+    var pct=s.total?Math.round(s.byCategory[c]/s.total*100):0;
+    return "<tr><td>"+esc(c)+"</td><td style='width:40%'><div class='bar'><i style='width:"+pct+"%'></i></div></td><td class='num'>"+yen(s.byCategory[c])+"</td></tr>";
+  }).join("");
+  document.getElementById("dSummary").innerHTML=
+    "<div class='grid3'>"+
+    "<div><div class='sub'>日数</div><div class='big'>"+days.length+"日</div></div>"+
+    "<div><div class='sub'>費用の目安（合計）</div><div class='big'>"+yen(s.total)+"</div></div>"+
+    "<div><div class='sub'>予算</div><div class='big'>"+(s.budget?yen(s.budget):"未設定")+"</div>"+(s.budget?"<div class='sub'>残り "+yen(s.remaining)+"</div>":"")+"</div>"+
+    "</div>"+(catHtml?"<table style='margin-top:8px'>"+catHtml+"</table>":"")+
+    (t.memo?"<p class='sub' style='margin-top:8px'>"+esc(t.memo)+"</p>":"");
+  document.getElementById("itinerary").innerHTML=days.length?days.map(function(d,idx){
+    var items=itemsForDate(t,d);
+    return "<h3>"+(idx+1)+"日目："+esc(d)+"</h3>"+(items.length?"<table>"+items.map(function(it){
+      return "<tr><td class='num'>"+esc(it.time||"")+"</td><td><strong>"+esc(it.title)+"</strong>"+(it.place?"<div class='sub'>"+esc(it.place)+"</div>":"")+(it.memo?"<div class='sub'>"+esc(it.memo)+"</div>":"")+"</td><td><span class='chip'>"+esc(it.category)+"</span></td><td class='num'>"+(it.cost?yen(it.cost):"")+"</td><td class='num'><button class='small' onclick='editItem("+it.id+")'>編集</button> <button class='small danger' onclick='deleteItem("+it.id+")'>削除</button></td></tr>";
+    }).join("")+"</table>":"<p class='sub'>予定なし</p>");
+  }).join(""):"<p class='sub'>出発日・帰着日を設定するか、予定を追加してください。</p>";
+  document.getElementById("checkList").innerHTML=(t.checks.length?
+    "<p class='sub'>"+s.checkDone+" / "+s.checkTotal+" 完了</p>"+t.checks.map(function(c){
+      return "<div class='row spread' style='padding:4px 0;border-bottom:1px solid var(--border)'><label style='display:flex;gap:8px;align-items:center;font-size:14px;color:var(--text);margin:0'><input type='checkbox' style='width:auto' "+(c.done?"checked":"")+" onchange='toggleCheck("+c.id+")'><span class='"+(c.done?"done":"")+"'>"+esc(c.text)+"</span></label><button class='small danger' onclick='deleteCheck("+c.id+")'>削除</button></div>";
+    }).join(""):"<p class='sub'>項目がありません。</p>");
+  if(t.start&&!document.getElementById("iDate").value)document.getElementById("iDate").value=t.start;
+}
+
+/* ===== 初期化 ===== */
+loadState();
+if(state.trips.length)currentTripId=state.trips[0].id;
+render();
+</script>
+</body>
+</html>
