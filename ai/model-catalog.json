@@ -1,7 +1,7 @@
 {
- "version": "2026-10-28.4",
+ "version": "2026-10-28.5",
  "checkedAt": "2026-10-28",
- "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ4件はユーザー承認で登録AIへ昇格（2026-10-28）。各AIの無料範囲は各社公式（Google / Anthropic / DeepSeek / xAI、2026-10-28確認）に基づく",
+ "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（Google / Anthropic / DeepSeek / xAI、2026-10-28確認）。2026-10-28.4での登録AIへの昇格はユーザーの指示で取り消し、候補表示に戻した",
  "costNote": "costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
  "commander": {
   "name": "ChatGPT（最上位モデル）",
@@ -110,7 +110,9 @@
     "summary",
     "research"
    ]
-  },
+  }
+ ],
+ "recommendations": [
   {
    "key": "gemini-3-flash",
    "name": "Gemini 3 Flash",
@@ -127,7 +129,9 @@
     "summary",
     "reasoning"
    ],
-   "note": "無料枠で利用（おすすめから登録に昇格）。Gemini APIに無料ティアあり、AI Studioでは上位モデルも無料で試せる（Google公式、2026-10-28確認）。渡し先はAI Studio / Geminiアプリ。"
+   "freeNote": "無料枠あり：Gemini APIに無料ティア（公式開発者ガイドで明記）。Google AI Studioでは上位のPro系も無料で試せる。入口はAI Studio / Geminiアプリ",
+   "reason": "調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",
+   "source": "Google AI for Developers 公式（2026-10-28確認）"
   },
   {
    "key": "claude-haiku-5-5",
@@ -144,7 +148,9 @@
     "writing",
     "data"
    ],
-   "note": "無料枠で利用（おすすめから登録に昇格）。FreeプランでもClaude.aiで選択可（Anthropic公式、2026-10-28確認）。最新Sonnet 5.5の無料範囲は未確認。渡し先はClaude.ai。"
+   "freeNote": "無料利用可：FreeプランでもClaude.aiで選択できる（公式）。同シリーズの最新 Sonnet 5.5（2026-09-28発表）の無料範囲は未確認",
+   "reason": "最速クラスの小型モデル。要約や下書き、サブタスクの大量処理を無料枠で回す担当に向く",
+   "source": "Anthropic 公式（2026-10-28確認）"
   },
   {
    "key": "deepseek-v4-flash",
@@ -160,7 +166,9 @@
     "math",
     "coding"
    ],
-   "note": "公式チャットは無料（おすすめから登録に昇格）。APIは無料ではなく従量だが最安級（DeepSeek公式、2026-10-28確認）。渡し先はchat.deepseek.com / アプリ。"
+   "freeNote": "公式チャット（chat.deepseek.com / アプリ）は無料で使える。APIは無料ではなく従量課金だが、公式料金でも最安級（入力$0.15/100万トークン〜・オフピーク）",
+   "reason": "推論・数学・コーディングが強い。指揮官やSolとは別系統の意見役（セカンドオピニオン）として相互検証の幅が広がる",
+   "source": "DeepSeek API Docs 公式（2026-10-28確認）"
   },
   {
    "key": "grok-4-7",
@@ -176,8 +184,9 @@
     "reasoning",
     "coding"
    ],
-   "note": "無料枠で利用（おすすめから登録に昇格）。XのFreeプランに上限付きのGrok利用が含まれる（xAI公式、2026-10-28確認）。APIは従量課金。渡し先はGrokアプリ / X。"
+   "freeNote": "無料枠あり：XのFreeプラン（$0）でGrokへの毎日のアクセス（上限あり）が含まれる（公式）。APIは従量課金で無料ではない",
+   "reason": "X上のリアルタイム情報の調査が本命。投資の材料集めで、他のAIが拾えない速報・話題を拾える",
+   "source": "xAI 公式（2026-10-28確認）"
   }
- ],
- "recommendations": []
+ ]
 }
