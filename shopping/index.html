@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>買い物比較アプリ（端末保存版）</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1a1d21;--muted:#6b7280;--border:#e2e5ea;--accent:#b45309;--good:#0a7d4f;--warn:#c0392b;--chip:#fdf3e3}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1e232b;--text:#e8eaed;--muted:#9aa3af;--border:#333a45;--accent:#f0b269;--chip:#3d2f16}}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding:16px 14px 60px}
+h1{font-size:20px;margin:6px 0 2px}h2{font-size:16px;margin:0 0 10px}
+section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:12px 0}
+.sub{color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{justify-content:space-between}
+button{font:inherit;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{padding:2px 8px;font-size:13px}
+button.danger{color:var(--warn)}
+a.btn{display:inline-block;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;color:var(--text);text-decoration:none;background:var(--card)}
+input,select,textarea{font:inherit;border:1px solid var(--border);border-radius:8px;padding:7px 9px;background:var(--card);color:var(--text);width:100%}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:20px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+td.num,th.num{text-align:right;white-space:nowrap}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px}
+.best{border-left:4px solid var(--good);padding-left:8px}
+.good{color:var(--good)}
+.prod{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;cursor:pointer}
+.prod.on{border-color:var(--accent);background:var(--chip)}
+</style>
+</head>
+<body>
+<main>
+<h1>買い物比較</h1>
+<div class="sub">端末保存版：データはこの端末のブラウザ内にだけ保存されます。価格は各サイトで確認して登録する方式です（自動取得はしません）。</div>
+
+<section>
+  <h2>比べたい商品を登録</h2>
+  <div class="grid">
+    <div><label>商品名</label><input type="text" id="pName" placeholder="例：ワイヤレスイヤホン"></div>
+    <div><label>カテゴリ</label><input type="text" id="pCategory" placeholder="例：家電、ゲーム、日用品"></div>
+    <div><label>目標価格（円・総額）</label><input type="number" id="pTarget" min="0" step="1" inputmode="numeric"></div>
+    <div><label>性能・仕様メモ</label><input type="text" id="pSpecs" placeholder="例：ノイキャンあり、30時間再生"></div>
+    <div><label>メモ</label><input type="text" id="pMemo"></div>
+  </div>
+  <div style="margin-top:10px"><button class="primary" onclick="createProduct()">商品を追加</button></div>
+</section>
+
+<section>
+  <h2>商品の一覧</h2>
+  <div id="productList"></div>
+</section>
+
+<div id="detail" style="display:none">
+  <section>
+    <h2 id="dTitle"></h2>
+    <div id="dInfo"></div>
+    <h3 style="font-size:14px">各サイトで価格を調べる</h3>
+    <div class="row" id="searchLinks"></div>
+    <div style="margin-top:12px"><button class="danger" onclick="deleteProduct()">この商品を削除</button></div>
+  </section>
+
+  <section>
+    <h2 id="offerFormTitle">候補（ショップ・価格）を追加</h2>
+    <div class="grid">
+      <div><label>ショップ名</label><input type="text" id="oShop" placeholder="例：Amazon、楽天、公式ストア"></div>
+      <div><label>価格（円）</label><input type="number" id="oPrice" min="0" step="1" inputmode="numeric"></div>
+      <div><label>送料（円）</label><input type="number" id="oShipping" min="0" step="1" inputmode="numeric" placeholder="無料なら0"></div>
+      <div><label>状態</label><select id="oCondition"><option>新品</option><option>中古</option><option>その他</option></select></div>
+      <div><label>評価（1〜5）</label><input type="number" id="oRating" min="1" max="5" step="0.5" placeholder="未入力なら3扱い"></div>
+      <div><label>商品ページURL</label><input type="url" id="oUrl" placeholder="https://"></div>
+      <div><label>メモ</label><input type="text" id="oMemo" placeholder="例：ポイント還元あり"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="oSubmit" onclick="submitOffer()">追加する</button>
+      <button id="oCancel" style="display:none" onclick="cancelOfferEdit()">編集をやめる</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>候補の比較（総額が安い順）</h2>
+    <div id="offerList"></div>
+    <p class="sub">「最安」は価格＋送料の総額が最小の候補。「おすすめスコア」は評価と総額（最安との差）と送料無料をもとにした目安です。最終判断は性能メモと合わせて見てください。</p>
+  </section>
+</div>
+
+<section>
+  <h2>カテゴリ内で商品を比べる</h2>
+  <div class="row">
+    <div style="flex:1"><label>カテゴリ</label><select id="cmpCategory" onchange="renderCompare()"></select></div>
+  </div>
+  <div id="compareView" style="margin-top:8px"></div>
+</section>
+
+<section>
+  <h2>データの書き出し・読み込み（引っ越し・バックアップ）</h2>
+  <div class="row">
+    <button onclick="exportData()">データを書き出す（JSON）</button>
+    <label style="margin:0">JSONを読み込む<input type="file" id="importFile" style="display:none" onchange="importData(event)"></label>
+  </div>
+  <p class="sub">読み込むと今この端末にあるデータは置き換わります。</p>
+</section>
+</main>
+<script>
+"use strict";
+var STORE_KEY="shopping-compare-v1";
+var SITES=[
+  {name:"Amazon",url:function(q){return "https://www.amazon.co.jp/s?k="+q;}},
+  {name:"楽天市場",url:function(q){return "https://search.rakuten.co.jp/search/mall/"+q+"/";}},
+  {name:"Yahoo!ショッピング",url:function(q){return "https://shopping.yahoo.co.jp/search?p="+q;}},
+  {name:"価格.com",url:function(q){return "https://kakaku.com/search_results/"+q+"/";}},
+  {name:"メルカリ",url:function(q){return "https://jp.mercari.com/search?keyword="+q;}}
+];
+var state={products:[]};
+var currentProductId=null;
+var editingOfferId=null;
+function loadState(){try{var raw=localStorage.getItem(STORE_KEY);if(raw){var p=JSON.parse(raw);if(p&&Array.isArray(p.products))state=p;}}catch(e){}}
+function saveState(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){alert("保存できませんでした");}}
+function nextId(list){var m=0;list.forEach(function(x){if(x.id>m)m=x.id;});return m+1;}
+function yen(n){return (n<0?"-":"")+"¥"+Math.abs(Math.round(n)).toLocaleString("ja-JP");}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+
+/* ===== 比較ロジック（DOM非依存） ===== */
+function offerTotal(o){return (o.price||0)+(o.shipping||0);}
+function bestOffer(product){
+  var best=null;
+  product.offers.forEach(function(o){if(!best||offerTotal(o)<offerTotal(best))best=o;});
+  return best;
+}
+function offerScore(product,offer){
+  var best=bestOffer(product);if(!best)return 0;
+  var min=offerTotal(best),total=offerTotal(offer);
+  var rating=(typeof offer.rating==="number"&&offer.rating>0)?offer.rating:3;
+  var score=rating*10-(min>0?((total-min)/min)*50:0)+(offer.shipping===0?5:0);
+  return Math.max(0,Math.round(score*10)/10);
+}
+function rankedOffers(product){
+  return product.offers.slice().sort(function(a,b){return offerTotal(a)-offerTotal(b)||a.id-b.id;}).map(function(o){
+    return {offer:o,total:offerTotal(o),score:offerScore(product,o),isBest:bestOffer(product)===o};
+  });
+}
+function targetReached(product){
+  var b=bestOffer(product);
+  return !!(product.targetPrice&&b&&offerTotal(b)<=product.targetPrice);
+}
+function categories(){
+  var seen={};state.products.forEach(function(p){if(p.category)seen[p.category]=1;});
+  return Object.keys(seen).sort();
+}
+
+/* ===== 商品 ===== */
+function currentProduct(){var p=null;state.products.forEach(function(x){if(x.id===currentProductId)p=x;});return p;}
+function createProduct(){
+  var name=document.getElementById("pName").value.trim();
+  if(!name){alert("商品名を入れてください");return;}
+  var p={id:nextId(state.products),name:name,category:document.getElementById("pCategory").value.trim(),
+    targetPrice:parseInt(document.getElementById("pTarget").value,10)||0,specs:document.getElementById("pSpecs").value.trim(),
+    memo:document.getElementById("pMemo").value.trim(),offers:[]};
+  state.products.push(p);currentProductId=p.id;
+  ["pName","pCategory","pTarget","pSpecs","pMemo"].forEach(function(id){document.getElementById(id).value="";});
+  saveState();render();
+}
+function selectProduct(id){currentProductId=id;editingOfferId=null;render();}
+function deleteProduct(){var p=currentProduct();if(!p)return;if(!confirm("商品「"+p.name+"」を削除しますか？"))return;state.products=state.products.filter(function(x){return x.id!==p.id;});currentProductId=state.products.length?state.products[0].id:null;saveState();render();}
+
+/* ===== 候補 ===== */
+function submitOffer(){
+  var p=currentProduct();if(!p)return;
+  var shop=document.getElementById("oShop").value.trim();
+  var price=parseInt(document.getElementById("oPrice").value,10);
+  if(!shop||isNaN(price)){alert("ショップ名と価格を入れてください");return;}
+  var rating=parseFloat(document.getElementById("oRating").value);
+  var data={shop:shop,price:price,shipping:parseInt(document.getElementById("oShipping").value,10)||0,
+    condition:document.getElementById("oCondition").value,rating:isNaN(rating)?null:rating,
+    url:document.getElementById("oUrl").value.trim(),memo:document.getElementById("oMemo").value.trim()};
+  if(editingOfferId!=null){
+    p.offers.forEach(function(o){if(o.id===editingOfferId){for(var k in data)o[k]=data[k];}});
+    editingOfferId=null;document.getElementById("offerFormTitle").textContent="候補（ショップ・価格）を追加";document.getElementById("oSubmit").textContent="追加する";document.getElementById("oCancel").style.display="none";
+  }else{
+    data.id=nextId(p.offers);p.offers.push(data);
+  }
+  ["oShop","oPrice","oShipping","oRating","oUrl","oMemo"].forEach(function(id){document.getElementById(id).value="";});
+  saveState();render();
+}
+function editOffer(id){var p=currentProduct();if(!p)return;var o=null;p.offers.forEach(function(x){if(x.id===id)o=x;});if(!o)return;
+  editingOfferId=id;
+  document.getElementById("oShop").value=o.shop;document.getElementById("oPrice").value=o.price;document.getElementById("oShipping").value=o.shipping||0;
+  document.getElementById("oCondition").value=o.condition||"新品";document.getElementById("oRating").value=(o.rating==null?"":o.rating);
+  document.getElementById("oUrl").value=o.url||"";document.getElementById("oMemo").value=o.memo||"";
+  document.getElementById("offerFormTitle").textContent="候補を編集";document.getElementById("oSubmit").textContent="保存する";document.getElementById("oCancel").style.display="";
+  window.scrollTo({top:document.getElementById("detail").offsetTop,behavior:"smooth"});}
+function cancelOfferEdit(){editingOfferId=null;document.getElementById("offerFormTitle").textContent="候補（ショップ・価格）を追加";document.getElementById("oSubmit").textContent="追加する";document.getElementById("oCancel").style.display="none";}
+function deleteOffer(id){var p=currentProduct();if(!p)return;if(!confirm("この候補を削除しますか？"))return;p.offers=p.offers.filter(function(x){return x.id!==id;});saveState();render();}
+
+/* ===== データ ===== */
+function exportData(){var blob=new Blob([JSON.stringify(state,null,1)],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="shopping-data-export.json";a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},2000);}
+function importData(ev){var f=ev.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var p=JSON.parse(r.result);if(!p||!Array.isArray(p.products))throw new Error("bad");if(!confirm("読み込むと今この端末にあるデータは置き換わります。続けますか？"))return;state=p;currentProductId=state.products.length?state.products[0].id:null;saveState();render();alert("読み込みました");}catch(e){alert("読み込めませんでした（JSON形式を確認してください）");}};r.readAsText(f);}
+
+/* ===== 描画 ===== */
+function render(){
+  var list=document.getElementById("productList");
+  if(!state.products.length){list.innerHTML="<p class='sub'>まだ商品がありません。上のフォームから登録してください。</p>";}
+  else{
+    list.innerHTML=state.products.map(function(p){
+      var b=bestOffer(p);
+      return "<div class='prod"+(p.id===currentProductId?" on":"")+"' onclick='selectProduct("+p.id+")'><strong>"+esc(p.name)+"</strong>"+
+      (p.category?" <span class='chip'>"+esc(p.category)+"</span>":"")+
+      (targetReached(p)?" <span class='chip'>目標価格に到達</span>":"")+
+      "<div class='sub'>"+(b?"最安総額 "+yen(offerTotal(b))+"（"+esc(b.shop)+"）／候補 "+p.offers.length+"件":"候補はまだありません")+(p.targetPrice?"／目標 "+yen(p.targetPrice):"")+"</div></div>";
+    }).join("");
+  }
+  var sel=document.getElementById("cmpCategory");
+  var cats=categories(),prev=sel.value;
+  sel.innerHTML=cats.length?cats.map(function(c){return "<option"+(c===prev?" selected":"")+">"+esc(c)+"</option>";}).join(""):"<option value=''>（カテゴリなし）</option>";
+  renderCompare();
+  var p=currentProduct();
+  document.getElementById("detail").style.display=p?"":"none";
+  if(!p)return;
+  document.getElementById("dTitle").textContent=p.name;
+  var b=bestOffer(p);
+  document.getElementById("dInfo").innerHTML=
+    (p.category?"<p>カテゴリ："+esc(p.category)+"</p>":"")+
+    (p.specs?"<p>性能・仕様："+esc(p.specs)+"</p>":"")+
+    (p.targetPrice?"<p>目標価格："+yen(p.targetPrice)+(targetReached(p)?" <span class='good'><strong>到達しています</strong></span>":"")+"</p>":"")+
+    (b?"<p>現在の最安：<strong>"+yen(offerTotal(b))+"</strong>（"+esc(b.shop)+"）</p>":"")+
+    (p.memo?"<p class='sub'>"+esc(p.memo)+"</p>":"");
+  var q=encodeURIComponent(p.name);
+  document.getElementById("searchLinks").innerHTML=SITES.map(function(s){return "<a class='btn' target='_blank' rel='noopener' href='"+s.url(q)+"'>"+esc(s.name)+"で探す</a>";}).join("");
+  var ranked=rankedOffers(p);
+  var bestScore=null;ranked.forEach(function(r){if(bestScore===null||r.score>bestScore)bestScore=r.score;});
+  document.getElementById("offerList").innerHTML=ranked.length?"<table><tr><th>ショップ</th><th class='num'>価格</th><th class='num'>送料</th><th class='num'>総額</th><th class='num'>スコア</th><th></th></tr>"+
+    ranked.map(function(r){
+      var o=r.offer;
+      return "<tr"+(r.isBest?" class='best'":"")+"><td><strong>"+esc(o.shop)+"</strong>"+(r.isBest?" <span class='chip'>最安</span>":"")+(bestScore!==null&&r.score===bestScore?" <span class='chip'>おすすめ</span>":"")+
+      "<div class='sub'>"+esc(o.condition||"新品")+"／評価 "+(o.rating==null?"未入力":o.rating)+(o.memo?"／"+esc(o.memo):"")+"</div>"+
+      (o.url?"<div><a href='"+esc(o.url)+"' target='_blank' rel='noopener'>商品ページを開く</a></div>":"")+"</td>"+
+      "<td class='num'>"+yen(o.price)+"</td><td class='num'>"+yen(o.shipping||0)+"</td><td class='num'><strong>"+yen(r.total)+"</strong></td><td class='num'>"+r.score+"</td>"+
+      "<td class='num'><button class='small' onclick='editOffer("+o.id+")'>編集</button> <button class='small danger' onclick='deleteOffer("+o.id+")'>削除</button></td></tr>";
+    }).join("")+"</table>":"<p class='sub'>候補がありません。各サイトで価格を調べて追加してください。</p>";
+}
+function renderCompare(){
+  var sel=document.getElementById("cmpCategory");
+  var cat=sel.value;
+  var view=document.getElementById("compareView");
+  if(!cat){view.innerHTML="<p class='sub'>カテゴリのある商品を登録すると、ここで比べられます。</p>";return;}
+  var ps=state.products.filter(function(p){return p.category===cat;});
+  view.innerHTML="<table><tr><th>商品</th><th class='num'>最安総額</th><th>最安ショップ</th><th class='num'>目標価格</th><th>性能・仕様</th></tr>"+
+    ps.map(function(p){var b=bestOffer(p);
+      return "<tr onclick='selectProduct("+p.id+")' style='cursor:pointer'><td><strong>"+esc(p.name)+"</strong>"+(targetReached(p)?" <span class='chip'>目標到達</span>":"")+"</td><td class='num'>"+(b?yen(offerTotal(b)):"-")+"</td><td>"+(b?esc(b.shop):"-")+"</td><td class='num'>"+(p.targetPrice?yen(p.targetPrice):"-")+"</td><td>"+esc(p.specs||"")+"</td></tr>";
+    }).join("")+"</table><p class='sub'>行を押すとその商品の詳細に移ります。</p>";
+}
+
+/* ===== 初期化 ===== */
+loadState();
+if(state.products.length)currentProductId=state.products[0].id;
+render();
+</script>
+</body>
+</html>
