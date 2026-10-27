@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI連携・指揮官アプリ（端末保存版）v2</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1a1d21;--muted:#6b7280;--border:#e2e5ea;--accent:#4f46e5;--good:#0a7d4f;--warn:#c0392b;--chip:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1e232b;--text:#e8eaed;--muted:#9aa3af;--border:#333a45;--accent:#a5b4fc;--chip:#2e2a5a}}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55}
+main{max-width:820px;margin:0 auto;padding:16px 14px 60px}
+h1{font-size:20px;margin:6px 0 2px}h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;margin:14px 0 6px}
+section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:12px 0}
+.sub{color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{justify-content:space-between}
+button{font:inherit;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{padding:2px 8px;font-size:13px}
+button.danger{color:var(--warn)}
+input,select,textarea{font:inherit;border:1px solid var(--border);border-radius:8px;padding:7px 9px;background:var(--card);color:var(--text);width:100%}
+textarea{min-height:76px}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:20px;font-weight:700}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px;margin:1px 2px}
+.step{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0}
+.step.done{border-left:4px solid var(--good)}
+.step.doing{border-left:4px solid var(--accent)}
+.model{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0}
+.model.off{opacity:.55}
+.bar{height:8px;background:var(--border);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.good{color:var(--good)}.warn{color:var(--warn)}
+.banner{border:1px solid var(--accent);background:var(--chip);border-radius:10px;padding:10px;margin:8px 0}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;max-height:260px;overflow:auto}
+</style>
+</head>
+<body>
+<main>
+<h1>AI連携・指揮官</h1>
+<div class="sub">端末保存版 v2：データはこの端末のブラウザ内にだけ保存されます。使うAIは、あなたが実際に使える OpenAI（Codex含む）／OpenClaw／Muse に絞ってあります。指揮官（ChatGPT最上位モデル）がタスクを分解し、適性・品質・速度・コストで担当を選びます。</div>
+
+<section>
+  <h2>指揮官（コマンダー）</h2>
+  <div class="grid">
+    <div><label>表示名</label><input id="cmdName"></div>
+    <div><label>モデルID（自分のプランで使える最上位に編集可）</label><input id="cmdModelId"></div>
+    <div><label>1サブタスクあたり概算コスト（円）</label><input id="cmdCost" type="number" min="0" step="1"></div>
+  </div>
+  <p class="sub">初期値 gpt-6-astra は、OpenAI公式料金ページ（2026-10-28確認）で最上位に載るモデルです。公式ヘルプでは、PlusではAstraはWorkとCodexの中で使え、ChatのGPT-6 ProはPro等のプラン向けとされています。自分のプランで使える最上位に合わせて編集してください。</p>
+  <button onclick="saveCommander()">指揮官設定を保存</button>
+  <span id="cmdSaved" class="sub"></span>
+</section>
+
+<section>
+  <h2>モデルカタログ（新モデルへの追従）</h2>
+  <div id="catalogInfo" class="sub"></div>
+  <div id="catalogBanner"></div>
+  <div class="row" style="margin-top:8px">
+    <button onclick="checkCatalog(true)">カタログの更新を確認</button>
+    <label style="margin:0">カタログJSONを読み込む<input type="file" id="catalogFile" style="display:none" onchange="importCatalog(event)"></label>
+    <a href="https://developers.openai.com/api/docs/pricing" target="_blank" rel="noopener">OpenAI公式 料金・モデル</a>
+    <a href="https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan" target="_blank" rel="noopener">CodexとChatGPTプラン（公式）</a>
+  </div>
+  <p class="sub">仕組み：このページと同じ場所に置かれた model-catalog.json を起動時に読みに行き、今のカタログより新しければ「適用」ボタンを出します（勝手に上書きはしません）。カタログ自体は週1回の自動チェックで、公式情報に新しいモデルや料金変更があれば更新・公開される想定です。</p>
+  <h3>OpenAI APIで使えるモデルを直接確認（任意）</h3>
+  <div class="grid">
+    <div><label>OpenAI APIキー（api.openai.com へだけ送信）</label><input id="oaKey" type="password" autocomplete="off" placeholder="sk-..."></div>
+    <div><label>保存</label><select id="oaKeySave"><option value="session">このタブを開いている間だけ（推奨）</option><option value="local">この端末に保存する</option><option value="none">保存しない</option></select></div>
+  </div>
+  <div class="row" style="margin-top:8px"><button onclick="fetchOpenAiModels()">APIのモデル一覧を取得</button><span id="oaResult" class="sub"></span></div>
+  <div id="oaModels"></div>
+  <p class="sub">注意：ChatGPTの課金（サブスク）とOpenAI APIの課金は別です（公式ヘルプで明記）。ChatGPTプランだけの場合はAPIキーが使えないことがあります。その場合は上のカタログ方式で追従します。CodexはChatGPTプランに含まれます（公式ヘルプ、2026-10-28確認）。</p>
+</section>
+
+<section>
+  <h2>1. タスクを与える</h2>
+  <div><label>タスク名</label><input id="tTitle" placeholder="例：株の決算レポートを作る／アプリのコードを書く"></div>
+  <div style="margin-top:8px"><label>内容（詳しいほど分解の精度が上がります）</label><textarea id="tBody" placeholder="例：決算資料を調べて要点をまとめ、数値チェックをして、Discordへ送る準備まで自動化したい"></textarea></div>
+  <div class="grid" style="margin-top:8px">
+    <div><label>優先モード</label>
+      <select id="tMode">
+        <option value="balanced">バランス（適性・品質・コスパ）</option>
+        <option value="cost">コスパ優先（安く）</option>
+        <option value="quality">品質優先（多少高くても良い）</option>
+        <option value="speed">速度優先（速く）</option>
+      </select></div>
+    <div><label>予算上限（円・概算／0なら無制限）</label><input id="tBudget" type="number" min="0" step="10" placeholder="例：100"></div>
+  </div>
+  <div style="margin-top:10px"><button class="primary" onclick="makePlan()">指揮官に計画を作らせる</button></div>
+  <div id="planView" style="margin-top:10px"></div>
+</section>
+
+<section id="execSection" style="display:none">
+  <h2>2. 連携を実行する</h2>
+  <div class="row spread"><div id="execSummary"></div><div class="row">
+    <button onclick="runSimulation()">連携をシミュレーション実行</button>
+    <button onclick="copyPlanMarkdown()">計画をMarkdownでコピー</button>
+    <button class="primary" onclick="saveProject()">この計画を保存</button>
+  </div></div>
+  <div class="bar" style="margin:10px 0"><i id="progressBar" style="width:0%"></i></div>
+  <div id="stepList"></div>
+  <h3>最終統合（指揮官のまとめ）</h3>
+  <textarea id="finalOutput" placeholder="各ステップの成果を編集し、最後にここへ統合結果をまとめます。シミュレーション実行で下書きが入ります。"></textarea>
+  <p class="sub">実行の渡し先は各ステップに表示されます。CodexとOpenClawは、計画をコピーしてあなたが各環境へ渡す方式です（Codex連携はあなたが仲介する取り決めのまま）。Muse担当は、この計画を konpota とのチャットに貼ればそのまま実行できます。OpenAI API担当は、上のAPIキー取得が使える場合に次の段階で自動送信へ広げられます。</p>
+</section>
+
+<section>
+  <h2>3. 登録AI（担当候補）</h2>
+  <div id="modelList"></div>
+  <h3>AIを追加・編集</h3>
+  <div class="grid">
+    <div><label>名前</label><input id="mName" placeholder="例：GPT-6.1 Sol"></div>
+    <div><label>提供元</label><input id="mProvider" placeholder="例：OpenAI / OpenClaw / Muse（Meta）"></div>
+    <div><label>モデルID</label><input id="mModelId" placeholder="例：gpt-6.1-sol"></div>
+    <div><label>実行の渡し先</label><select id="mRoute"></select></div>
+    <div><label>1サブタスクあたり概算コスト（円）</label><input id="mCost" type="number" min="0" step="1" placeholder="例：4"></div>
+    <div><label>品質スコア（0〜100・目安）</label><input id="mQuality" type="number" min="0" max="100" placeholder="例：90"></div>
+    <div><label>速度スコア（0〜100・目安）</label><input id="mSpeed" type="number" min="0" max="100" placeholder="例：80"></div>
+  </div>
+  <div style="margin-top:8px"><label>得意分野（チェックした分野は適性90、他は40として採点）</label><div id="mCaps" class="row"></div></div>
+  <div class="row" style="margin-top:10px">
+    <button class="primary" id="mSubmit" onclick="submitModel()">AIを追加</button>
+    <button id="mCancel" style="display:none" onclick="cancelModelEdit()">編集をやめる</button>
+    <button onclick="resetPresets()">初期カタログに戻す</button>
+  </div>
+</section>
+
+<section>
+  <h2>保存した計画</h2>
+  <div id="projectList"></div>
+</section>
+
+<section>
+  <h2>選び方の説明（スコア）</h2>
+  <p class="sub" id="scoreExplain"></p>
+  <p class="sub" id="costNote"></p>
+</section>
+
+<section>
+  <h2>データの書き出し・読み込み</h2>
+  <div class="row">
+    <button onclick="exportData()">データを書き出す（JSON）</button>
+    <label style="margin:0">JSONを読み込む<input type="file" id="importFile" style="display:none" onchange="importData(event)"></label>
+  </div>
+  <p class="sub">読み込むと今この端末にあるデータは置き換わります。APIキーは書き出しJSONに含まれません。</p>
+</section>
+</main>
+<script>
+"use strict";
+var STORE_KEY="ai-orchestrator-v2";
+var OLD_STORE_KEY="ai-orchestrator-v1";
+var OA_KEY_STORE="ai-orchestrator-openai-key";
+var CAPS=[
+ {id:"planning",label:"計画・設計"},
+ {id:"reasoning",label:"推論・分析"},
+ {id:"coding",label:"コーディング"},
+ {id:"writing",label:"文章作成"},
+ {id:"research",label:"調査・検索"},
+ {id:"data",label:"データ処理"},
+ {id:"automation",label:"自動化・外部連携"},
+ {id:"translation",label:"翻訳"},
+ {id:"math",label:"計算・数値"},
+ {id:"image",label:"画像"},
+ {id:"summary",label:"要約"},
+ {id:"review",label:"レビュー・検証"}
+];
+var CAP_LABEL={}; CAPS.forEach(function(c){CAP_LABEL[c.id]=c.label;});
+var ROUTES={
+ api:"OpenAI API / ChatGPTで実行",
+ codex:"Codexへ渡す（あなたが実行）",
+ openclaw:"OpenClawへ渡す（Mac）",
+ muse:"Muse / konpota へ渡す",
+ manual:"手動で実行",
+ other:"その他"
+};
+var KEYWORDS={
+ coding:["コード","プログラム","アプリ","開発","バグ","python","javascript","スクリプト","実装"],
+ writing:["文章","記事","ブログ","レポートを書","メール文","コピー","原稿","書いて"],
+ research:["調べ","調査","リサーチ","検索","最新","ニュース","比較","市場"],
+ data:["データ","csv","集計","表","グラフ","スプレッドシート"],
+ automation:["自動化","定期","通知","discord","連携","ボット","bot","送信して","実行して"],
+ translation:["翻訳","英語に","日本語に","英訳","和訳"],
+ math:["計算","数値","金額","予算","統計","確率"],
+ image:["画像","イラスト","写真","デザイン","バナー"],
+ summary:["要約","まとめ","要点","サマリー"],
+ reasoning:["分析","考察","戦略","判断","理由","評価","決算","投資"],
+ review:["チェック","検証","レビュー","校正","確認","テスト"]
+};
+function capScores(strong){var o={};CAPS.forEach(function(c){o[c.id]=strong.indexOf(c.id)>=0?90:40;});o.planning=strong.indexOf("planning")>=0?90:45;return o;}
+var BUILTIN_CATALOG={
+ version:"2026-10-28.1",checkedAt:"2026-10-28",
+ source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）",
+ costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
+ commander:{name:"ChatGPT（最上位モデル）",modelId:"gpt-6-astra",cost:21},
+ models:[
+  {key:"gpt-6-1-sol",name:"GPT-6.1 Sol",provider:"OpenAI",modelId:"gpt-6.1-sol",cost:4,quality:95,speed:78,route:"api",strongCaps:["reasoning","coding","writing","research","review","summary","image"]},
+  {key:"gpt-6-1-terra",name:"GPT-6.1 Terra",provider:"OpenAI",modelId:"gpt-6.1-terra",cost:2,quality:88,speed:85,route:"api",strongCaps:["reasoning","writing","data","summary","research"]},
+  {key:"gpt-6-luna",name:"GPT-6 Luna",provider:"OpenAI",modelId:"gpt-6-luna",cost:1,quality:74,speed:95,route:"api",strongCaps:["summary","translation","data","writing"]},
+  {key:"codex",name:"Codex（コーディング専門）",provider:"OpenAI / Codex",modelId:"gpt-5.3-codex",cost:5,quality:93,speed:72,route:"codex",strongCaps:["coding","review","data"]},
+  {key:"openclaw",name:"OpenClaw（Macの自動化エージェント）",provider:"OpenClaw",modelId:"openclaw（基盤モデルはMac側設定）",cost:2,quality:78,speed:60,route:"openclaw",strongCaps:["automation","data","research","summary"]},
+  {key:"muse-konpota",name:"Muse / konpota",provider:"Muse（Meta）",modelId:"Muse Spark（Museアプリ側で自動更新）",cost:2,quality:87,speed:76,route:"muse",strongCaps:["planning","writing","reasoning","review","summary","research"]}
+ ]
+};
+function catalogToModels(cat){
+ return cat.models.map(function(m,i){return {id:i+1,key:m.key,name:m.name,provider:m.provider,modelId:m.modelId,cost:m.cost,quality:m.quality,speed:m.speed,route:m.route||"other",enabled:true,caps:capScores(m.strongCaps||[])};});
+}
+function presets(){return catalogToModels(BUILTIN_CATALOG);}
+var state={commander:{name:BUILTIN_CATALOG.commander.name,modelId:BUILTIN_CATALOG.commander.modelId,cost:BUILTIN_CATALOG.commander.cost},models:presets(),projects:[],catalogVersion:BUILTIN_CATALOG.version,catalogCheckedAt:BUILTIN_CATALOG.checkedAt};
+var currentPlan=null;
+var editingModelId=null;
+var pendingCatalog=null;
+
+function loadState(){
+ try{
+  var raw=localStorage.getItem(STORE_KEY);
+  if(raw){var p=JSON.parse(raw);if(p&&Array.isArray(p.models)){state=p;return;}}
+  var old=localStorage.getItem(OLD_STORE_KEY);
+  if(old){var o=JSON.parse(old);if(o&&Array.isArray(o.projects))state.projects=o.projects;}
+ }catch(e){}
+}
+function saveState(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){alert("保存できませんでした");}}
+function nextId(list){var m=0;list.forEach(function(x){if(x.id>m)m=x.id;});return m+1;}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function yen(n){return "¥"+Math.round(n).toLocaleString("ja-JP");}
+
+/* ===== 指揮官ロジック（DOM非依存・検証対象） ===== */
+function detectCaps(text){
+  var t=String(text||"").toLowerCase();var found=[];
+  Object.keys(KEYWORDS).forEach(function(cap){
+    for(var i=0;i<KEYWORDS[cap].length;i++){if(t.indexOf(KEYWORDS[cap][i].toLowerCase())>=0){found.push(cap);break;}}
+  });
+  if(!found.length)found=["reasoning","writing"];
+  return found;
+}
+function decomposeTask(task){
+  var caps=detectCaps((task.title||"")+" "+(task.body||""));
+  var steps=[{key:"plan",title:"計画・タスク分解",cap:"planning",factor:1.2,assignee:"commander",detail:"指揮官が目的・手順・担当・成果物の形を決める"}];
+  caps.filter(function(cap){return cap!=="review";}).forEach(function(cap){
+    steps.push({key:"exec-"+cap,title:CAP_LABEL[cap]+"を実行",cap:cap,factor:1,assignee:"auto",detail:CAP_LABEL[cap]+"が中心のサブタスク"});
+  });
+  steps.push({key:"review",title:"レビュー・検証",cap:"review",factor:0.7,assignee:"reviewer",detail:"実行担当とは別のAIが誤り・抜けをチェックする（相互検証）"});
+  steps.push({key:"integrate",title:"最終統合",cap:"summary",factor:0.8,assignee:"commander",detail:"指揮官が全成果を1つの成果物に統合する"});
+  return steps;
+}
+var MODE_W={
+ balanced:{cap:0.45,quality:0.25,speed:0.10,cost:0.20},
+ cost:{cap:0.35,quality:0.15,speed:0.10,cost:0.40},
+ quality:{cap:0.45,quality:0.40,speed:0.05,cost:0.10},
+ speed:{cap:0.35,quality:0.15,speed:0.40,cost:0.10}
+};
+function costScore(model,all){
+  var max=0;all.forEach(function(m){if(m.cost>max)max=m.cost;});
+  if(max<=0)return 100;
+  return 100-(model.cost/max)*100;
+}
+function scoreModel(model,cap,mode,all){
+  var w=MODE_W[mode]||MODE_W.balanced;
+  var capS=(model.caps&&typeof model.caps[cap]==="number")?model.caps[cap]:40;
+  return Math.round((capS*w.cap + model.quality*w.quality + model.speed*w.speed + costScore(model,all)*w.cost)*10)/10;
+}
+function rankModels(cap,mode,models){
+  var enabled=models.filter(function(m){return m.enabled;});
+  return enabled.map(function(m){return {model:m,score:scoreModel(m,cap,mode,enabled)};})
+    .sort(function(a,b){return b.score-a.score||a.model.cost-b.model.cost||a.model.id-b.model.id;});
+}
+function estimateCost(model,step){return Math.round(model.cost*(step.factor||1));}
+function buildPlan(task,models,commander){
+  var mode=task.mode||"balanced";
+  var steps=decomposeTask(task);
+  var cmdCost=(typeof commander.cost==="number"&&commander.cost>0)?commander.cost:21;
+  var execPick={};
+  var planSteps=steps.map(function(s){
+    var out={key:s.key,title:s.title,cap:s.cap,factor:s.factor,detail:s.detail,status:"pending",output:"",assigneeName:"",assigneeId:null,route:"",cost:0,score:null,reason:""};
+    if(s.assignee==="commander"){
+      out.assigneeName=commander.name;out.route="ChatGPT（指揮官）";out.reason="指揮官固定（計画と統合は全体を見られる最上位モデルが担う）";
+      out.cost=Math.round(cmdCost*(s.factor||1));
+      return out;
+    }
+    var ranked=rankModels(s.cap,mode,models);
+    if(!ranked.length){out.assigneeName="（有効なAIなし）";out.reason="登録AIを有効にしてください";return out;}
+    var pick=ranked[0];
+    if(s.assignee==="reviewer"){
+      var alt=ranked.filter(function(r){return !execPick[r.model.id];})[0];
+      if(alt)pick=alt;
+      out.reason="相互検証のため、実行担当と違うAIを優先。適性スコア "+pick.score;
+    }else{
+      execPick[pick.model.id]=1;
+      out.reason="適性 ["+CAP_LABEL[s.cap]+"] スコア "+pick.score+" / 品質 "+pick.model.quality+" / 概算 "+yen(pick.model.cost)+"/回";
+    }
+    out.assigneeName=pick.model.name;out.assigneeId=pick.model.id;out.score=pick.score;out.route=ROUTES[pick.model.route]||pick.model.route||"";
+    out.cost=estimateCost(pick.model,s);
+    return out;
+  });
+  var total=planSteps.reduce(function(a,s){return a+s.cost;},0);
+  var topOnly=planSteps.reduce(function(a,s){return a+Math.round(cmdCost*(s.factor||1));},0);
+  return {title:task.title,body:task.body,mode:mode,budget:task.budget||0,steps:planSteps,totalCost:total,topOnlyCost:topOnly,savings:topOnly-total,overBudget:!!(task.budget&&total>task.budget),createdAt:new Date().toISOString()};
+}
+function planToMarkdown(plan,commander){
+  var lines=["# "+plan.title,"","指揮官: "+commander.name+" ("+(commander.modelId||"")+")","優先モード: "+plan.mode,"概算コスト合計: "+yen(plan.totalCost)+" (最上位モデル単独なら "+yen(plan.topOnlyCost)+", 差 "+yen(plan.savings)+")",""];
+  plan.steps.forEach(function(s,i){lines.push((i+1)+". ["+s.title+"] 担当: "+s.assigneeName+" / 渡し先: "+(s.route||"-")+" / 概算 "+yen(s.cost));lines.push("   理由: "+s.reason);if(s.output)lines.push("   成果: "+s.output);});
+  return lines.join("\n");
+}
+
+/* ===== カタログ更新 ===== */
+function applyCatalog(cat){
+  var byKey={};state.models.forEach(function(m){if(m.key)byKey[m.key]=m;});
+  var incoming=catalogToModels(cat);
+  var added=[],updated=[];
+  incoming.forEach(function(nm){
+    var old=byKey[nm.key];
+    if(old){nm.id=old.id;nm.enabled=old.enabled;for(var k in nm)old[k]=nm[k];updated.push(nm.name);}
+    else{nm.id=nextId(state.models);state.models.push(nm);added.push(nm.name);}
+  });
+  if(cat.commander){state.commander={name:cat.commander.name||state.commander.name,modelId:cat.commander.modelId||state.commander.modelId,cost:(typeof cat.commander.cost==="number"?cat.commander.cost:state.commander.cost)};}
+  state.catalogVersion=cat.version;state.catalogCheckedAt=cat.checkedAt||"";
+  pendingCatalog=null;saveState();init();renderCatalogInfo();
+  alert("カタログ "+cat.version+" を適用しました。更新: "+(updated.join(", ")||"なし")+" / 追加: "+(added.join(", ")||"なし")+"（あなたの追加したAIは消していません）");
+}
+function showCatalogBanner(cat){
+  pendingCatalog=cat;
+  document.getElementById("catalogBanner").innerHTML="<div class='banner'><strong>新しいモデルカタログがあります: "+esc(cat.version)+"</strong>（確認日 "+esc(cat.checkedAt||"-")+"）<div class='sub'>"+esc(cat.source||"")+"</div><div style='margin-top:6px'><button class='primary small' onclick='applyPendingCatalog()'>カタログを適用する</button> <button class='small' onclick='dismissCatalog()'>後で</button></div></div>";
+}
+function applyPendingCatalog(){if(pendingCatalog)applyCatalog(pendingCatalog);}
+function dismissCatalog(){pendingCatalog=null;document.getElementById("catalogBanner").innerHTML="";}
+function checkCatalog(manual){
+  if(typeof fetch==="undefined"||location.protocol.indexOf("http")!==0){if(manual)alert("公開ページ（https）で開いたときに自動確認します。ファイルで開いている場合は、カタログJSONを読み込んでください。");return;}
+  fetch("model-catalog.json",{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("http");return r.json();}).then(function(cat){
+    if(cat&&cat.version&&cat.version!==state.catalogVersion){showCatalogBanner(cat);}
+    else if(manual){alert("カタログは最新です（"+state.catalogVersion+"）");}
+  }).catch(function(){if(manual)alert("カタログを取得できませんでした");});
+}
+function importCatalog(ev){
+  var f=ev.target.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){try{var cat=JSON.parse(r.result);if(!cat||!Array.isArray(cat.models)||!cat.version)throw new Error("bad");
+    if(cat.version===state.catalogVersion){alert("同じバージョンです（"+cat.version+"）");return;}
+    showCatalogBanner(cat);}catch(e){alert("読み込めませんでした（カタログJSON形式を確認してください）");}};
+  r.readAsText(f);
+}
+function renderCatalogInfo(){
+  document.getElementById("catalogInfo").textContent="適用中カタログ: "+(state.catalogVersion||"-")+"（確認日 "+(state.catalogCheckedAt||"-")+"） / 出典: "+BUILTIN_CATALOG.source;
+  document.getElementById("costNote").textContent=BUILTIN_CATALOG.costNote;
+}
+
+/* ===== OpenAI API モデル取得 ===== */
+function storeOaKey(key){
+  var mode=document.getElementById("oaKeySave").value;
+  try{sessionStorage.removeItem(OA_KEY_STORE);localStorage.removeItem(OA_KEY_STORE);}catch(e){}
+  if(!key)return;
+  try{if(mode==="session")sessionStorage.setItem(OA_KEY_STORE,key);else if(mode==="local")localStorage.setItem(OA_KEY_STORE,key);}catch(e){}
+}
+function loadOaKey(){
+  try{return sessionStorage.getItem(OA_KEY_STORE)||localStorage.getItem(OA_KEY_STORE)||"";}catch(e){return "";}
+}
+function fetchOpenAiModels(){
+  var key=document.getElementById("oaKey").value.trim()||loadOaKey();
+  var out=document.getElementById("oaResult");var box=document.getElementById("oaModels");
+  if(!key){out.textContent="APIキーを入れてください（ChatGPTのログインとは別です）";return;}
+  storeOaKey(key);
+  out.textContent="取得中...";
+  fetch("https://api.openai.com/v1/models",{headers:{"Authorization":"Bearer "+key}}).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
+  }).then(function(j){
+    var ids=(j.data||[]).map(function(x){return x.id;}).sort();
+    out.textContent="取得できました: "+ids.length+"件（"+new Date().toLocaleString("ja-JP")+"）";
+    var registered={};state.models.forEach(function(m){registered[m.modelId]=1;});
+    box.innerHTML=ids.length?"<pre>"+ids.map(function(id){
+      return esc(id)+(registered[id]?" [登録済み]":"");
+    }).join("\n")+"</pre><p class='sub'>未登録のモデルは、下の「AIを追加・編集」で名前とモデルIDを入れて登録できます（自動で全部は追加しません）。</p>":"<p class='sub'>モデルが返りませんでした。</p>";
+  }).catch(function(e){
+    out.textContent="取得できませんでした: "+e.message+"。キーの権限・API課金の設定・ブラウザからの呼び出し制限が原因のことがあります。";
+    box.innerHTML="";
+  });
+}
+
+/* ===== 画面: 指揮官 ===== */
+function saveCommander(){
+  state.commander.name=document.getElementById("cmdName").value.trim()||"ChatGPT（最上位モデル）";
+  state.commander.modelId=document.getElementById("cmdModelId").value.trim();
+  state.commander.cost=parseInt(document.getElementById("cmdCost").value,10)||21;
+  saveState();document.getElementById("cmdSaved").textContent="保存しました";
+}
+
+/* ===== 画面: 計画 ===== */
+function makePlan(){
+  var title=document.getElementById("tTitle").value.trim();
+  var body=document.getElementById("tBody").value.trim();
+  if(!title&&!body){alert("タスク名か内容を入れてください");return;}
+  var task={title:title||"（無題のタスク）",body:body,mode:document.getElementById("tMode").value,budget:parseInt(document.getElementById("tBudget").value,10)||0};
+  currentPlan=buildPlan(task,state.models,state.commander);
+  renderPlan();
+}
+function renderPlan(){
+  var v=document.getElementById("planView");
+  if(!currentPlan){v.innerHTML="";document.getElementById("execSection").style.display="none";return;}
+  var p=currentPlan;
+  v.innerHTML="<div class='row spread'><div><span class='big'>概算 "+yen(p.totalCost)+"</span> <span class='sub'>最上位モデル単独なら "+yen(p.topOnlyCost)+" / 差 "+yen(p.savings)+"</span></div>"+
+    (p.overBudget?"<span class='chip warn'>予算上限を超えています</span>":"<span class='chip'>予算内</span>")+"</div>"+
+    "<p class='sub'>担当の組み合わせ: "+p.steps.map(function(s){return esc(s.assigneeName);}).filter(function(x,i,a){return a.indexOf(x)===i;}).join(" + ")+"</p>";
+  document.getElementById("execSection").style.display="";
+  document.getElementById("execSummary").innerHTML="<strong>"+esc(p.title)+"</strong><div class='sub'>"+p.steps.length+"ステップ</div>";
+  renderSteps();updateProgress();
+}
+function renderSteps(){
+  var el=document.getElementById("stepList");if(!currentPlan){el.innerHTML="";return;}
+  el.innerHTML=currentPlan.steps.map(function(s,i){
+    return "<div class='step "+(s.status==="done"?"done":s.status==="doing"?"doing":"")+"'><div class='row spread'><strong>"+(i+1)+". "+esc(s.title)+"</strong><span class='chip'>"+esc(s.assigneeName)+"</span></div>"+
+    "<div class='sub'>渡し先: "+esc(s.route||"-")+" / "+esc(s.detail)+" / 概算 "+yen(s.cost)+(s.score?" / スコア "+s.score:"")+"</div><div class='sub'>選択理由: "+esc(s.reason)+"</div>"+
+    "<div class='row' style='margin:6px 0'><button class='small' onclick='setStepStatus("+i+",\"doing\")'>開始</button><button class='small' onclick='setStepStatus("+i+",\"done\")'>完了</button><button class='small' onclick='setStepStatus("+i+",\"pending\")'>戻す</button></div>"+
+    "<textarea placeholder='このステップの成果（各AIの出力）を貼る/書く' onchange='setStepOutput("+i+",this.value)'>"+esc(s.output||"")+"</textarea></div>";
+  }).join("");
+}
+function setStepStatus(i,st){currentPlan.steps[i].status=st;renderSteps();updateProgress();}
+function setStepOutput(i,val){currentPlan.steps[i].output=val;updateFinalDraft(false);}
+function updateProgress(){
+  if(!currentPlan)return;var done=currentPlan.steps.filter(function(s){return s.status==="done";}).length;
+  document.getElementById("progressBar").style.width=Math.round(done/currentPlan.steps.length*100)+"%";
+}
+function updateFinalDraft(force){
+  var box=document.getElementById("finalOutput");
+  if(!force&&box.value.trim())return;
+  var parts=currentPlan.steps.filter(function(s){return s.output;}).map(function(s){return "["+s.title+" / "+s.assigneeName+"]\n"+s.output;});
+  if(parts.length)box.value=parts.join("\n\n");
+}
+function runSimulation(){
+  if(!currentPlan)return;
+  var i=0;
+  function next(){
+    if(i>0){currentPlan.steps[i-1].status="done";if(!currentPlan.steps[i-1].output)currentPlan.steps[i-1].output="（シミュレーション）"+currentPlan.steps[i-1].assigneeName+" が ["+currentPlan.steps[i-1].title+"] を処理しました。実際の出力は、各環境へ計画を渡した結果をここへ貼ります。";}
+    if(i>=currentPlan.steps.length){renderSteps();updateProgress();updateFinalDraft(true);return;}
+    currentPlan.steps[i].status="doing";renderSteps();updateProgress();i++;setTimeout(next,650);
+  }
+  next();
+}
+function copyPlanMarkdown(){
+  if(!currentPlan)return;var md=planToMarkdown(currentPlan,state.commander);
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(md).then(function(){alert("コピーしました");},function(){prompt("コピーしてください",md);});}
+  else prompt("コピーしてください",md);
+}
+function saveProject(){
+  if(!currentPlan)return;
+  var copy=JSON.parse(JSON.stringify(currentPlan));copy.id=nextId(state.projects);copy.finalOutput=document.getElementById("finalOutput").value;
+  state.projects.unshift(copy);saveState();renderProjects();alert("保存しました");
+}
+function loadProject(id){
+  var p=null;state.projects.forEach(function(x){if(x.id===id)p=x;});if(!p)return;
+  currentPlan=JSON.parse(JSON.stringify(p));
+  document.getElementById("tTitle").value=p.title;document.getElementById("tBody").value=p.body||"";document.getElementById("tMode").value=p.mode;document.getElementById("tBudget").value=p.budget||"";
+  document.getElementById("finalOutput").value=p.finalOutput||"";
+  renderPlan();window.scrollTo({top:0,behavior:"smooth"});
+}
+function deleteProject(id){if(!confirm("この計画を削除しますか？"))return;state.projects=state.projects.filter(function(x){return x.id!==id;});saveState();renderProjects();}
+function renderProjects(){
+  var el=document.getElementById("projectList");
+  el.innerHTML=state.projects.length?state.projects.map(function(p){
+    return "<div class='model'><div class='row spread'><strong>"+esc(p.title)+"</strong><span class='sub'>"+esc(String(p.createdAt||"").slice(0,10))+" / "+yen(p.totalCost)+"</span></div><div class='row'><button class='small' onclick='loadProject("+p.id+")'>開く</button><button class='small danger' onclick='deleteProject("+p.id+")'>削除</button></div></div>";
+  }).join(""):"<p class='sub'>保存した計画はまだありません。</p>";
+}
+
+/* ===== 画面: モデル登録 ===== */
+function renderRouteOptions(selected){
+  document.getElementById("mRoute").innerHTML=Object.keys(ROUTES).map(function(k){return "<option value='"+k+"'"+(k===selected?" selected":"")+">"+ROUTES[k]+"</option>";}).join("");
+}
+function renderCapChecks(selected){
+  document.getElementById("mCaps").innerHTML=CAPS.filter(function(c){return c.id!=="planning";}).map(function(c){
+    return "<label style='display:inline-flex;gap:4px;align-items:center;color:var(--text);font-size:13px'><input type='checkbox' class='mCap' value='"+c.id+"' style='width:auto'"+(selected&&selected.indexOf(c.id)>=0?" checked":"")+">"+c.label+"</label>";
+  }).join("");
+}
+function renderModels(){
+  var el=document.getElementById("modelList");
+  el.innerHTML=state.models.map(function(m){
+    var strong=CAPS.filter(function(c){return m.caps&&m.caps[c.id]>=80;}).map(function(c){return c.label;});
+    return "<div class='model "+(m.enabled?"":"off")+"'><div class='row spread'><strong>"+esc(m.name)+"</strong><span class='chip'>"+esc(m.provider)+"</span></div>"+
+    "<div class='sub'>ID: "+esc(m.modelId||"-")+" / 渡し先: "+esc(ROUTES[m.route]||m.route||"-")+" / 概算 "+yen(m.cost)+"/回 / 品質 "+m.quality+" / 速度 "+m.speed+"</div>"+
+    "<div>"+strong.map(function(s){return "<span class='chip'>"+esc(s)+"</span>";}).join("")+"</div>"+
+    "<div class='row' style='margin-top:6px'><button class='small' onclick='toggleModel("+m.id+")'>"+(m.enabled?"無効にする":"有効にする")+"</button><button class='small' onclick='editModel("+m.id+")'>編集</button><button class='small danger' onclick='deleteModel("+m.id+")'>削除</button></div></div>";
+  }).join("");
+}
+function toggleModel(id){state.models.forEach(function(m){if(m.id===id)m.enabled=!m.enabled;});saveState();renderModels();}
+function submitModel(){
+  var name=document.getElementById("mName").value.trim();if(!name){alert("名前を入れてください");return;}
+  var strong=[];document.querySelectorAll(".mCap:checked").forEach(function(x){strong.push(x.value);});
+  var data={name:name,provider:document.getElementById("mProvider").value.trim()||"その他",modelId:document.getElementById("mModelId").value.trim(),
+    route:document.getElementById("mRoute").value,
+    cost:parseInt(document.getElementById("mCost").value,10)||0,quality:Math.max(0,Math.min(100,parseInt(document.getElementById("mQuality").value,10)||60)),
+    speed:Math.max(0,Math.min(100,parseInt(document.getElementById("mSpeed").value,10)||60)),caps:capScores(strong)};
+  if(editingModelId!=null){state.models.forEach(function(m){if(m.id===editingModelId){data.id=m.id;data.enabled=m.enabled;data.key=m.key;for(var k in data)m[k]=data[k];}});cancelModelEdit();}
+  else{data.id=nextId(state.models);data.key="custom-"+data.id;data.enabled=true;state.models.push(data);}
+  ["mName","mProvider","mModelId","mCost","mQuality","mSpeed"].forEach(function(id){document.getElementById(id).value="";});renderCapChecks([]);renderRouteOptions("api");
+  saveState();renderModels();
+}
+function editModel(id){
+  var m=null;state.models.forEach(function(x){if(x.id===id)m=x;});if(!m)return;editingModelId=id;
+  document.getElementById("mName").value=m.name;document.getElementById("mProvider").value=m.provider;document.getElementById("mModelId").value=m.modelId||"";
+  document.getElementById("mCost").value=m.cost;document.getElementById("mQuality").value=m.quality;document.getElementById("mSpeed").value=m.speed;
+  renderRouteOptions(m.route||"other");
+  renderCapChecks(CAPS.filter(function(c){return m.caps&&m.caps[c.id]>=80;}).map(function(c){return c.id;}));
+  document.getElementById("mSubmit").textContent="保存する";document.getElementById("mCancel").style.display="";
+}
+function cancelModelEdit(){editingModelId=null;document.getElementById("mSubmit").textContent="AIを追加";document.getElementById("mCancel").style.display="none";renderCapChecks([]);renderRouteOptions("api");}
+function deleteModel(id){if(!confirm("このAIを削除しますか？"))return;state.models=state.models.filter(function(m){return m.id!==id;});saveState();renderModels();}
+function resetPresets(){if(!confirm("登録AIを初期カタログに戻しますか？（追加・編集は消えます）"))return;state.models=presets();state.catalogVersion=BUILTIN_CATALOG.version;state.catalogCheckedAt=BUILTIN_CATALOG.checkedAt;saveState();renderModels();renderCatalogInfo();}
+
+/* ===== データ ===== */
+function exportData(){var blob=new Blob([JSON.stringify(state,null,1)],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ai-orchestrator-data.json";a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},2000);}
+function importData(ev){var f=ev.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var p=JSON.parse(r.result);if(!p||!Array.isArray(p.models))throw new Error("bad");if(!confirm("読み込むと今この端末にあるデータは置き換わります。続けますか？"))return;state=p;saveState();init();alert("読み込みました");}catch(e){alert("読み込めませんでした（JSON形式を確認してください）");}};r.readAsText(f);}
+
+/* ===== 初期化 ===== */
+function init(){
+  document.getElementById("cmdName").value=state.commander.name||"ChatGPT（最上位モデル）";
+  document.getElementById("cmdModelId").value=state.commander.modelId||"";
+  document.getElementById("cmdCost").value=(typeof state.commander.cost==="number"?state.commander.cost:21);
+  document.getElementById("scoreExplain").textContent="スコア = 得意分野の適性 x 重み + 品質 x 重み + 速度 x 重み + 安さ x 重み。重みは優先モードで変わります（バランス: 適性.45/品質.25/速度.10/安さ.20、コスパ優先: 安さ.40、品質優先: 品質.40、速度優先: 速度.40）。レビュー担当は実行担当と別のAIを優先し、相互検証できる組み合わせにします。品質・速度スコアは目安で、アプリ内で編集できます。";
+  var k=loadOaKey();if(k)document.getElementById("oaKey").value=k;
+  renderRouteOptions("api");renderCapChecks([]);renderModels();renderProjects();renderCatalogInfo();
+}
+loadState();init();checkCatalog(false);
+</script>
+</body>
+</html>
