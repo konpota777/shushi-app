@@ -145,6 +145,18 @@ function itemsForDate(trip,date){
     var ta=a.time||"99:99",tb=b.time||"99:99";return ta<tb?-1:(ta>tb?1:a.id-b.id);});
 }
 
+var AIRPORT_CODES={"東京":"TYO","大阪":"OSA","札幌":"SPK","名古屋":"NGO","福岡":"FUK","那覇":"OKA","沖縄":"OKA","神戸":"UKB","仙台":"SDJ","広島":"HIJ","高松":"TAK","松山":"MYJ","鹿児島":"KOJ","熊本":"KMJ","長崎":"NGS","大分":"OIT","宮崎":"KMI","新潟":"KIJ","小松":"KMQ","富山":"TOY","静岡":"FSZ","岡山":"OKJ","函館":"HKD","旭川":"AKJ","釧路":"KUH","帯広":"OBO","青森":"AOJ","秋田":"AXJ","山形":"GAJ","福島":"FKS","徳島":"TKS","高知":"KCZ","北九州":"KKJ","佐賀":"HSG","石垣":"ISG","宮古島":"MMY"};
+function airportCode(name){
+  if(!name)return null;
+  var n=name.trim();
+  if(AIRPORT_CODES[n])return AIRPORT_CODES[n];
+  n=n.replace(/(空港|都|府|県|市)$/,"").trim();
+  if(n.length<2)return null;
+  if(AIRPORT_CODES[n])return AIRPORT_CODES[n];
+  var keys=Object.keys(AIRPORT_CODES);
+  for(var i=0;i<keys.length;i++){if(n.indexOf(keys[i])>=0||keys[i].indexOf(n)>=0)return AIRPORT_CODES[keys[i]];}
+  return null;
+}
 function buildTravelLinks(trip){
   var dest=(trip.destination||"").trim();if(!dest)return [];
   var origin=(trip.origin||"").trim();
@@ -152,6 +164,13 @@ function buildTravelLinks(trip){
   var links=[];
   var fq=(origin?origin+"から":"")+dest+"への航空券";
   links.push({category:"飛行機",label:"Googleフライトで探す",url:"https://www.google.com/travel/flights?q="+enc(fq)});
+  var oc=airportCode(origin),dc=airportCode(dest);
+  if(oc&&dc&&trip.start){
+    var dp=trip.start.split("-");
+    links.push({category:"飛行機",label:"スカイチケット（"+origin+"→"+dest+"・片道）",url:"https://skyticket.jp/flights-in-japan/search_result.php?departure_date%5By%5D="+dp[0]+"&departure_date%5Bm%5D="+dp[1]+"&departure_date%5Bd%5D="+dp[2]+"&departure_airport_cd="+oc+"&arrival_airport_cd="+dc});
+  }else{
+    links.push({category:"飛行機",label:"スカイチケット（トップから探す）",url:"https://skyticket.jp/"});
+  }
   if(origin)links.push({category:"飛行機",label:"Yahoo!路線情報（航空を含むルート）",url:"https://transit.yahoo.co.jp/search/result?from="+enc(origin)+"&to="+enc(dest)});
   links.push({category:"飛行機",label:"スカイスキャナー（トップから探す）",url:"https://www.skyscanner.jp/"});
   if(origin){
@@ -170,6 +189,7 @@ function buildTravelLinks(trip){
   if(trip.end)bk+="&checkout="+trip.end;
   links.push({category:"宿泊施設",label:"Booking.comで探す",url:bk});
   links.push({category:"宿泊施設",label:"Googleホテルで探す",url:"https://www.google.com/travel/hotels?q="+enc(dest+"のホテル")});
+  links.push({category:"宿泊施設",label:"楽天トラベル（トップから探す）",url:"https://travel.rakuten.co.jp/"});
   return links;
 }
 
