@@ -88,6 +88,7 @@ td.num,th.num{text-align:right;white-space:nowrap}
       <div style="flex:1"><input type="text" id="cText" placeholder="例：パスポート、充電器"></div>
       <button class="primary" onclick="addCheck()">追加</button>
     </div>
+    <div style="margin-top:10px"><button onclick="addPresetChecks()">定番の持ち物リストを入れる</button> <span class="sub">いつもの持ち物29点をまとめて追加します（すでにある項目は重ねません）</span></div>
     <div id="checkList" style="margin-top:8px"></div>
   </section>
 </div>
@@ -178,6 +179,17 @@ function cancelItemEdit(){editingItemId=null;document.getElementById("itemFormTi
 function deleteItem(id){var t=currentTrip();if(!t)return;if(!confirm("この予定を削除しますか？"))return;t.items=t.items.filter(function(x){return x.id!==id;});saveState();render();}
 
 /* ===== チェックリスト ===== */
+var PRESET_CHECKS=["無印ちっちゃいスーツケースも買う", "手持ちバッグ", "オシャレな物", "モバ充", "イヤホン2種類", "財布", "家の鍵", "スマホ", "マスク", "高速バスの快適グッズ", "MacBook、iPad", "下着、靴下", "ゴム", "新幹線予約したらその支払いしたカード", "雨具", "歯磨き", "記念日とかのプレゼント、手紙", "時計", "チケット", "寝巻き", "靴", "メガネケース", "ライブの時はグッズと望遠鏡", "免許証", "マイナンバーカード", "クレカ、ETC", "洋服", "充電器", "手拭き、汗拭きシート"];
+function addPresetChecks(){
+  var t=currentTrip();if(!t)return;
+  var added=0;
+  PRESET_CHECKS.forEach(function(text){
+    var exists=t.checks.some(function(c){return c.text===text;});
+    if(!exists){t.checks.push({id:nextId(t.checks),text:text,done:false});added++;}
+  });
+  saveState();render();
+  alert(added>0?("定番リストから"+added+"点を追加しました"):("定番リストはすべて追加済みです"));
+}
 function addCheck(){var t=currentTrip();if(!t)return;var text=document.getElementById("cText").value.trim();if(!text)return;t.checks.push({id:nextId(t.checks),text:text,done:false});document.getElementById("cText").value="";saveState();render();}
 function toggleCheck(id){var t=currentTrip();if(!t)return;t.checks.forEach(function(c){if(c.id===id)c.done=!c.done;});saveState();render();}
 function deleteCheck(id){var t=currentTrip();if(!t)return;t.checks=t.checks.filter(function(c){return c.id!==id;});saveState();render();}
