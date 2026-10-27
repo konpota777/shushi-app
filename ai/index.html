@@ -104,7 +104,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px s
   <div id="stepList"></div>
   <h3>最終統合（指揮官のまとめ）</h3>
   <textarea id="finalOutput" placeholder="各ステップの成果を編集し、最後にここへ統合結果をまとめます。シミュレーション実行で下書きが入ります。"></textarea>
-  <p class="sub">実行の渡し先は各ステップに表示されます。CodexとOpenClawは、計画をコピーしてあなたが各環境へ渡す方式です（Codex連携はあなたが仲介する取り決めのまま）。Muse担当は、この計画を konpota とのチャットに貼ればそのまま実行できます。OpenAI API担当は、上のAPIキー取得が使える場合に次の段階で自動送信へ広げられます。</p>
+  <p class="sub">実行の渡し先は各ステップに表示されます。CodexとOpenClawは、計画をコピーしてあなたが各環境へ渡す方式です（Codex連携はあなたが仲介する取り決めのまま）。OpenClawは、あなたのDiscordサーバーと接続しているMac上のOpenClawそのものを指します。Muse担当は、この計画を konpota とのチャットに貼ればそのまま実行できます。OpenAI API担当は、上のAPIキー取得が使える場合に次の段階で自動送信へ広げられます。</p>
 </section>
 
 <section>
@@ -171,7 +171,7 @@ var CAP_LABEL={}; CAPS.forEach(function(c){CAP_LABEL[c.id]=c.label;});
 var ROUTES={
  api:"OpenAI API / ChatGPTで実行",
  codex:"Codexへ渡す（あなたが実行）",
- openclaw:"OpenClawへ渡す（Mac）",
+ openclaw:"OpenClaw（Discord接続済み）へ渡す（Mac）",
  muse:"Muse / konpota へ渡す",
  manual:"手動で実行",
  other:"その他"
@@ -191,7 +191,7 @@ var KEYWORDS={
 };
 function capScores(strong){var o={};CAPS.forEach(function(c){o[c.id]=strong.indexOf(c.id)>=0?90:40;});o.planning=strong.indexOf("planning")>=0?90:45;return o;}
 var BUILTIN_CATALOG={
- version:"2026-10-28.1",checkedAt:"2026-10-28",
+ version:"2026-10-28.2",checkedAt:"2026-10-28",
  source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）",
  costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
  commander:{name:"ChatGPT（最上位モデル）",modelId:"gpt-6-astra",cost:21},
@@ -200,12 +200,12 @@ var BUILTIN_CATALOG={
   {key:"gpt-6-1-terra",name:"GPT-6.1 Terra",provider:"OpenAI",modelId:"gpt-6.1-terra",cost:2,quality:88,speed:85,route:"api",strongCaps:["reasoning","writing","data","summary","research"]},
   {key:"gpt-6-luna",name:"GPT-6 Luna",provider:"OpenAI",modelId:"gpt-6-luna",cost:1,quality:74,speed:95,route:"api",strongCaps:["summary","translation","data","writing"]},
   {key:"codex",name:"Codex（コーディング専門）",provider:"OpenAI / Codex",modelId:"gpt-5.3-codex",cost:5,quality:93,speed:72,route:"codex",strongCaps:["coding","review","data"]},
-  {key:"openclaw",name:"OpenClaw（Macの自動化エージェント）",provider:"OpenClaw",modelId:"openclaw（基盤モデルはMac側設定）",cost:2,quality:78,speed:60,route:"openclaw",strongCaps:["automation","data","research","summary"]},
+  {key:"openclaw",name:"OpenClaw（Discord接続済み・あなたのMac）",provider:"OpenClaw",modelId:"あなたのDiscordサーバーと接続済みのOpenClaw",cost:2,quality:78,speed:60,route:"openclaw",strongCaps:["automation","data","research","summary"],note:"あなたのMacBook Airで動くOpenClaw（ワークスペース /Users/konpota/.openclaw/workspace、WebChatとDiscordで利用）。Discordのチャンネルやボットが絡むタスクはこのOpenClawが担当する。Discordへの実際の送信は、従来どおりあなたの確認後に限る。基盤モデルはMac側の設定依存。"},
   {key:"muse-konpota",name:"Muse / konpota",provider:"Muse（Meta）",modelId:"Muse Spark（Museアプリ側で自動更新）",cost:2,quality:87,speed:76,route:"muse",strongCaps:["planning","writing","reasoning","review","summary","research"]}
  ]
 };
 function catalogToModels(cat){
- return cat.models.map(function(m,i){return {id:i+1,key:m.key,name:m.name,provider:m.provider,modelId:m.modelId,cost:m.cost,quality:m.quality,speed:m.speed,route:m.route||"other",enabled:true,caps:capScores(m.strongCaps||[])};});
+ return cat.models.map(function(m,i){return {id:i+1,key:m.key,name:m.name,provider:m.provider,modelId:m.modelId,cost:m.cost,quality:m.quality,speed:m.speed,route:m.route||"other",note:m.note||"",enabled:true,caps:capScores(m.strongCaps||[])};});
 }
 function presets(){return catalogToModels(BUILTIN_CATALOG);}
 var state={commander:{name:BUILTIN_CATALOG.commander.name,modelId:BUILTIN_CATALOG.commander.modelId,cost:BUILTIN_CATALOG.commander.cost},models:presets(),projects:[],catalogVersion:BUILTIN_CATALOG.version,catalogCheckedAt:BUILTIN_CATALOG.checkedAt};
@@ -474,6 +474,7 @@ function renderModels(){
     var strong=CAPS.filter(function(c){return m.caps&&m.caps[c.id]>=80;}).map(function(c){return c.label;});
     return "<div class='model "+(m.enabled?"":"off")+"'><div class='row spread'><strong>"+esc(m.name)+"</strong><span class='chip'>"+esc(m.provider)+"</span></div>"+
     "<div class='sub'>ID: "+esc(m.modelId||"-")+" / 渡し先: "+esc(ROUTES[m.route]||m.route||"-")+" / 概算 "+yen(m.cost)+"/回 / 品質 "+m.quality+" / 速度 "+m.speed+"</div>"+
+    (m.note?"<div class='sub'>"+esc(m.note)+"</div>":"")+
     "<div>"+strong.map(function(s){return "<span class='chip'>"+esc(s)+"</span>";}).join("")+"</div>"+
     "<div class='row' style='margin-top:6px'><button class='small' onclick='toggleModel("+m.id+")'>"+(m.enabled?"無効にする":"有効にする")+"</button><button class='small' onclick='editModel("+m.id+")'>編集</button><button class='small danger' onclick='deleteModel("+m.id+")'>削除</button></div></div>";
   }).join("");
@@ -486,7 +487,7 @@ function submitModel(){
     route:document.getElementById("mRoute").value,
     cost:parseInt(document.getElementById("mCost").value,10)||0,quality:Math.max(0,Math.min(100,parseInt(document.getElementById("mQuality").value,10)||60)),
     speed:Math.max(0,Math.min(100,parseInt(document.getElementById("mSpeed").value,10)||60)),caps:capScores(strong)};
-  if(editingModelId!=null){state.models.forEach(function(m){if(m.id===editingModelId){data.id=m.id;data.enabled=m.enabled;data.key=m.key;for(var k in data)m[k]=data[k];}});cancelModelEdit();}
+  if(editingModelId!=null){state.models.forEach(function(m){if(m.id===editingModelId){data.id=m.id;data.enabled=m.enabled;data.key=m.key;data.note=m.note||"";for(var k in data)m[k]=data[k];}});cancelModelEdit();}
   else{data.id=nextId(state.models);data.key="custom-"+data.id;data.enabled=true;state.models.push(data);}
   ["mName","mProvider","mModelId","mCost","mQuality","mSpeed"].forEach(function(id){document.getElementById(id).value="";});renderCapChecks([]);renderRouteOptions("api");
   saveState();renderModels();
