@@ -68,7 +68,7 @@ a.lk{display:inline-block;border:1px solid var(--border);border-radius:8px;paddi
   <section>
     <h2>交通・宿を調べる</h2>
     <div id="travelLinks"></div>
-    <p class="sub">行き先・出発地・日程を入れた検索へのリンクです。開いた先で「安い順」に並べ替えると最安値が見られます。価格は各サイトの表示で、このアプリが自動で取り込むわけではありません。</p>
+    <p class="sub">各カテゴリに複数のサイトのリンクを並べています（行き先・出発地・日程入りのものと、各サイトのトップから探すものがあります）。開いた先で見比べて、「安い順」に並べ替えると最安値が見られます。価格は各サイトの表示で、このアプリが自動で取り込むわけではありません。</p>
   </section>
 
   <section>
@@ -152,10 +152,19 @@ function buildTravelLinks(trip){
   var links=[];
   var fq=(origin?origin+"から":"")+dest+"への航空券";
   links.push({category:"飛行機",label:"Googleフライトで探す",url:"https://www.google.com/travel/flights?q="+enc(fq)});
-  if(origin){links.push({category:"新幹線・電車",label:"Yahoo!路線情報（"+origin+"→"+dest+"）",url:"https://transit.yahoo.co.jp/search/result?from="+enc(origin)+"&to="+enc(dest)});}
-  else{links.push({category:"新幹線・電車",label:"Yahoo!路線情報を開く",url:"https://transit.yahoo.co.jp/"});}
+  if(origin)links.push({category:"飛行機",label:"Yahoo!路線情報（航空を含むルート）",url:"https://transit.yahoo.co.jp/search/result?from="+enc(origin)+"&to="+enc(dest)});
+  links.push({category:"飛行機",label:"スカイスキャナー（トップから探す）",url:"https://www.skyscanner.jp/"});
+  if(origin){
+    links.push({category:"新幹線・電車",label:"Yahoo!路線情報（"+origin+"→"+dest+"）",url:"https://transit.yahoo.co.jp/search/result?from="+enc(origin)+"&to="+enc(dest)});
+    links.push({category:"新幹線・電車",label:"Googleマップのルート",url:"https://www.google.com/maps/dir/"+enc(origin)+"/"+enc(dest)});
+  }else{
+    links.push({category:"新幹線・電車",label:"Yahoo!路線情報を開く",url:"https://transit.yahoo.co.jp/"});
+    links.push({category:"新幹線・電車",label:"Googleマップ（"+dest+"へのルート）",url:"https://www.google.com/maps/dir//"+enc(dest)});
+  }
   var bq="高速バス "+(origin?origin+" ":"")+dest+" 最安 予約";
   links.push({category:"バス",label:"高速バスを検索（Google）",url:"https://www.google.com/search?q="+enc(bq)});
+  links.push({category:"バス",label:"高速バスネット（トップから探す）",url:"https://www.kosokubus.net/"});
+  links.push({category:"バス",label:"WILLER（トップから探す）",url:"https://travel.willer.co.jp/"});
   var bk="https://www.booking.com/searchresults.ja.html?ss="+enc(dest);
   if(trip.start)bk+="&checkin="+trip.start;
   if(trip.end)bk+="&checkout="+trip.end;
