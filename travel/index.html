@@ -31,6 +31,7 @@ td.num,th.num{text-align:right;white-space:nowrap}
 .chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px}
 .trip{border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0;cursor:pointer}
 .trip.on{border-color:var(--accent);background:var(--chip)}
+a.lk{display:inline-block;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;color:var(--text);text-decoration:none;background:var(--card)}
 .done{text-decoration:line-through;color:var(--muted)}
 .bar{height:8px;background:var(--chip);border-radius:4px;overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--accent)}
@@ -46,6 +47,7 @@ td.num,th.num{text-align:right;white-space:nowrap}
   <div class="grid">
     <div><label>旅行名</label><input type="text" id="tName" placeholder="例：京都旅行"></div>
     <div><label>行き先</label><input type="text" id="tDest" placeholder="例：京都"></div>
+    <div><label>出発地（任意）</label><input type="text" id="tOrigin" placeholder="例：大阪"></div>
     <div><label>出発日</label><input type="date" id="tStart"></div>
     <div><label>帰着日</label><input type="date" id="tEnd"></div>
     <div><label>予算（円）</label><input type="number" id="tBudget" min="0" step="1" inputmode="numeric" placeholder="例：80000"></div>
@@ -61,6 +63,12 @@ td.num,th.num{text-align:right;white-space:nowrap}
     <h2 id="dTitle"></h2>
     <div id="dSummary"></div>
     <div style="margin-top:10px"><button class="danger" onclick="deleteTrip()">この旅行を削除</button></div>
+  </section>
+
+  <section>
+    <h2>交通・宿を調べる</h2>
+    <div id="travelLinks"></div>
+    <p class="sub">行き先・出発地・日程を入れた検索へのリンクです。開いた先で「安い順」に並べ替えると最安値が見られます。価格は各サイトの表示で、このアプリが自動で取り込むわけではありません。</p>
   </section>
 
   <section>
@@ -137,16 +145,35 @@ function itemsForDate(trip,date){
     var ta=a.time||"99:99",tb=b.time||"99:99";return ta<tb?-1:(ta>tb?1:a.id-b.id);});
 }
 
+function buildTravelLinks(trip){
+  var dest=(trip.destination||"").trim();if(!dest)return [];
+  var origin=(trip.origin||"").trim();
+  var enc=encodeURIComponent;
+  var links=[];
+  var fq=(origin?origin+"から":"")+dest+"への航空券";
+  links.push({category:"飛行機",label:"Googleフライトで探す",url:"https://www.google.com/travel/flights?q="+enc(fq)});
+  if(origin){links.push({category:"新幹線・電車",label:"Yahoo!路線情報（"+origin+"→"+dest+"）",url:"https://transit.yahoo.co.jp/search/result?from="+enc(origin)+"&to="+enc(dest)});}
+  else{links.push({category:"新幹線・電車",label:"Yahoo!路線情報を開く",url:"https://transit.yahoo.co.jp/"});}
+  var bq="高速バス "+(origin?origin+" ":"")+dest+" 最安 予約";
+  links.push({category:"バス",label:"高速バスを検索（Google）",url:"https://www.google.com/search?q="+enc(bq)});
+  var bk="https://www.booking.com/searchresults.ja.html?ss="+enc(dest);
+  if(trip.start)bk+="&checkin="+trip.start;
+  if(trip.end)bk+="&checkout="+trip.end;
+  links.push({category:"宿泊施設",label:"Booking.comで探す",url:bk});
+  links.push({category:"宿泊施設",label:"Googleホテルで探す",url:"https://www.google.com/travel/hotels?q="+enc(dest+"のホテル")});
+  return links;
+}
+
 /* ===== 旅行 ===== */
 function currentTrip(){var t=null;state.trips.forEach(function(x){if(x.id===currentTripId)t=x;});return t;}
 function createTrip(){
   var name=document.getElementById("tName").value.trim();
   if(!name){alert("旅行名を入れてください");return;}
-  var trip={id:nextId(state.trips),name:name,destination:document.getElementById("tDest").value.trim(),
+  var trip={id:nextId(state.trips),name:name,destination:document.getElementById("tDest").value.trim(),origin:document.getElementById("tOrigin").value.trim(),
     start:document.getElementById("tStart").value,end:document.getElementById("tEnd").value,
     budget:parseInt(document.getElementById("tBudget").value,10)||0,memo:document.getElementById("tMemo").value.trim(),items:[],checks:[]};
   state.trips.push(trip);currentTripId=trip.id;
-  document.getElementById("tName").value="";document.getElementById("tDest").value="";document.getElementById("tBudget").value="";document.getElementById("tMemo").value="";
+  document.getElementById("tName").value="";document.getElementById("tDest").value="";document.getElementById("tOrigin").value="";document.getElementById("tBudget").value="";document.getElementById("tMemo").value="";
   saveState();render();
 }
 function selectTrip(id){currentTripId=id;editingItemId=null;render();}
@@ -206,14 +233,15 @@ function render(){
     list.innerHTML=state.trips.map(function(t){
       var s=tripTotals(t);
       return "<div class='trip"+(t.id===currentTripId?" on":"")+"' onclick='selectTrip("+t.id+")'><strong>"+esc(t.name)+"</strong>"+
-      (t.destination?" <span class='chip'>"+esc(t.destination)+"</span>":"")+
+      (t.destination?" <span class='chip'>"+(t.origin?esc(t.origin)+" → ":"")+esc(t.destination)+"</span>":"")+
       "<div class='sub'>"+(t.start?esc(t.start):"日付未定")+(t.end?" 〜 "+esc(t.end):"")+"／予定 "+s.count+"件／費用目安 "+yen(s.total)+(s.budget?"／予算 "+yen(s.budget):"")+"</div></div>";
     }).join("");
   }
   var t=currentTrip();
   document.getElementById("detail").style.display=t?"":"none";
   if(!t)return;
-  document.getElementById("dTitle").textContent=t.name+(t.destination?"（"+t.destination+"）":"");
+  var routeStr=(t.origin?t.origin+" → ":"")+(t.destination||"");
+  document.getElementById("dTitle").textContent=t.name+(routeStr?"（"+routeStr+"）":"");
   var s=tripTotals(t);
   var days=tripDays(t);
   var catHtml=Object.keys(s.byCategory).sort(function(a,b){return s.byCategory[b]-s.byCategory[a];}).map(function(c){
@@ -227,6 +255,12 @@ function render(){
     "<div><div class='sub'>予算</div><div class='big'>"+(s.budget?yen(s.budget):"未設定")+"</div>"+(s.budget?"<div class='sub'>残り "+yen(s.remaining)+"</div>":"")+"</div>"+
     "</div>"+(catHtml?"<table style='margin-top:8px'>"+catHtml+"</table>":"")+
     (t.memo?"<p class='sub' style='margin-top:8px'>"+esc(t.memo)+"</p>":"");
+  var tlinks=buildTravelLinks(t);
+  document.getElementById("travelLinks").innerHTML=tlinks.length?["飛行機","新幹線・電車","バス","宿泊施設"].map(function(cat){
+    var ls=tlinks.filter(function(l){return l.category===cat;});
+    if(!ls.length)return "";
+    return "<div style='margin:6px 0'><span class='chip'>"+cat+"</span> "+ls.map(function(l){return "<a class='lk' target='_blank' rel='noopener' href='"+l.url+"'>"+esc(l.label)+"</a>";}).join(" ")+"</div>";
+  }).join(""):"<p class='sub'>行き先を入れると検索リンクが出ます。</p>";
   document.getElementById("itinerary").innerHTML=days.length?days.map(function(d,idx){
     var items=itemsForDate(t,d);
     return "<h3>"+(idx+1)+"日目："+esc(d)+"</h3>"+(items.length?"<table>"+items.map(function(it){
