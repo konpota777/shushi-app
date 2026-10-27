@@ -121,7 +121,7 @@ td.num,th.num{text-align:right;white-space:nowrap}
   <h2>データの書き出し・読み込み（引っ越し・バックアップ）</h2>
   <div class="row">
     <button onclick="exportData()">データを書き出す（JSON）</button>
-    <label style="margin:0">JSONを読み込む<input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)"></label>
+    <label style="margin:0">JSONを読み込む<input type="file" id="importFile" style="display:none" onchange="importData(event)"></label>
   </div>
   <p class="sub">最初に使うときは、一緒に渡した shushi-data.json を「JSONを読み込む」から読み込んでください（今までの記録79件と年末計上リストが入ります）。読み込むと今この端末にあるデータは置き換わります。</p>
 </section>
