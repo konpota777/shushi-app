@@ -1,7 +1,7 @@
 {
- "version": "2026-10-28.5",
+ "version": "2026-10-28.6",
  "checkedAt": "2026-10-28",
- "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（Google / Anthropic / DeepSeek / xAI、2026-10-28確認）。2026-10-28.4での登録AIへの昇格はユーザーの指示で取り消し、候補表示に戻した",
+ "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（2026-10-28確認）。トークン節約ポリシー（高モデルは難易度「難」のときだけ・思考レベル自動調整）はユーザー指示で追加（2026-10-28）",
  "costNote": "costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
  "commander": {
   "name": "ChatGPT（最上位モデル）",
@@ -18,6 +18,10 @@
    "quality": 95,
    "speed": 78,
    "route": "api",
+   "tier": "high",
+   "capScores": {
+    "math": 90
+   },
    "strongCaps": [
     "reasoning",
     "coding",
@@ -37,6 +41,12 @@
    "quality": 88,
    "speed": 85,
    "route": "api",
+   "tier": "mid",
+   "capScores": {
+    "coding": 70,
+    "math": 65,
+    "review": 65
+   },
    "strongCaps": [
     "reasoning",
     "writing",
@@ -54,6 +64,10 @@
    "quality": 74,
    "speed": 95,
    "route": "api",
+   "tier": "low",
+   "capScores": {
+    "coding": 50
+   },
    "strongCaps": [
     "summary",
     "translation",
@@ -70,6 +84,10 @@
    "quality": 93,
    "speed": 72,
    "route": "codex",
+   "tier": "high",
+   "capScores": {
+    "math": 70
+   },
    "strongCaps": [
     "coding",
     "review",
@@ -85,6 +103,10 @@
    "quality": 78,
    "speed": 60,
    "route": "openclaw",
+   "tier": "mid",
+   "capScores": {
+    "coding": 55
+   },
    "strongCaps": [
     "automation",
     "data",
@@ -102,6 +124,11 @@
    "quality": 87,
    "speed": 76,
    "route": "muse",
+   "tier": "mid",
+   "capScores": {
+    "coding": 70,
+    "math": 70
+   },
    "strongCaps": [
     "planning",
     "writing",
@@ -122,6 +149,10 @@
    "quality": 85,
    "speed": 90,
    "route": "manual",
+   "tier": "low",
+   "capScores": {
+    "coding": 70
+   },
    "strongCaps": [
     "research",
     "image",
@@ -142,6 +173,7 @@
    "quality": 84,
    "speed": 93,
    "route": "manual",
+   "tier": "low",
    "strongCaps": [
     "summary",
     "coding",
@@ -161,6 +193,7 @@
    "quality": 86,
    "speed": 80,
    "route": "manual",
+   "tier": "mid",
    "strongCaps": [
     "reasoning",
     "math",
@@ -179,6 +212,10 @@
    "quality": 90,
    "speed": 80,
    "route": "manual",
+   "tier": "mid",
+   "capScores": {
+    "math": 70
+   },
    "strongCaps": [
     "research",
     "reasoning",
