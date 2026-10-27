@@ -157,6 +157,18 @@ function airportCode(name){
   for(var i=0;i<keys.length;i++){if(n.indexOf(keys[i])>=0||keys[i].indexOf(n)>=0)return AIRPORT_CODES[keys[i]];}
   return null;
 }
+var AGODA_CITY_IDS={"京都":1784,"大阪":9590,"東京":5085};
+function agodaCityId(name){
+  if(!name)return null;
+  var n=name.trim();
+  if(AGODA_CITY_IDS[n])return AGODA_CITY_IDS[n];
+  n=n.replace(/(空港|都|府|県|市)$/,"").trim();
+  if(n.length<2)return null;
+  if(AGODA_CITY_IDS[n])return AGODA_CITY_IDS[n];
+  var keys=Object.keys(AGODA_CITY_IDS);
+  for(var i=0;i<keys.length;i++){if(n.indexOf(keys[i])>=0||keys[i].indexOf(n)>=0)return AGODA_CITY_IDS[keys[i]];}
+  return null;
+}
 function buildTravelLinks(trip){
   var dest=(trip.destination||"").trim();if(!dest)return [];
   var origin=(trip.origin||"").trim();
@@ -189,6 +201,16 @@ function buildTravelLinks(trip){
   if(trip.end)bk+="&checkout="+trip.end;
   links.push({category:"宿泊施設",label:"Booking.comで探す",url:bk});
   links.push({category:"宿泊施設",label:"Googleホテルで探す",url:"https://www.google.com/travel/hotels?q="+enc(dest+"のホテル")});
+  var agid=agodaCityId(dest);
+  if(agid){
+    var ag="https://www.agoda.com/ja-jp/search?city="+agid;
+    if(trip.start)ag+="&checkIn="+trip.start;
+    if(trip.end)ag+="&checkOut="+trip.end;
+    ag+="&rooms=1&adults=2";
+    links.push({category:"宿泊施設",label:"アゴダで探す",url:ag});
+  }else{
+    links.push({category:"宿泊施設",label:"アゴダ（トップから探す）",url:"https://www.agoda.com/ja-jp/"});
+  }
   links.push({category:"宿泊施設",label:"楽天トラベル（トップから探す）",url:"https://travel.rakuten.co.jp/"});
   return links;
 }
