@@ -108,7 +108,13 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px s
 </section>
 
 <section>
-  <h2>3. 登録AI（担当候補）</h2>
+  <h2>3. おすすめ候補（無料利用が中心・未登録）</h2>
+  <p class="sub">追加すると良さそうな最新のAIを、無料で使える範囲と一緒に並べています。自動では登録しません。「候補に追加する」を押したものだけが下の登録AIに入り、担当の選択対象になります。無料枠には上限や条件があるので、各候補の注記を確認してください。</p>
+  <div id="recList"></div>
+</section>
+
+<section>
+  <h2>4. 登録AI（担当候補）</h2>
   <div id="modelList"></div>
   <h3>AIを追加・編集</h3>
   <div class="grid">
@@ -191,7 +197,7 @@ var KEYWORDS={
 };
 function capScores(strong){var o={};CAPS.forEach(function(c){o[c.id]=strong.indexOf(c.id)>=0?90:40;});o.planning=strong.indexOf("planning")>=0?90:45;return o;}
 var BUILTIN_CATALOG={
- version:"2026-10-28.2",checkedAt:"2026-10-28",
+ version:"2026-10-28.3",checkedAt:"2026-10-28",
  source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）",
  costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
  commander:{name:"ChatGPT（最上位モデル）",modelId:"gpt-6-astra",cost:21},
@@ -202,13 +208,20 @@ var BUILTIN_CATALOG={
   {key:"codex",name:"Codex（コーディング専門）",provider:"OpenAI / Codex",modelId:"gpt-5.3-codex",cost:5,quality:93,speed:72,route:"codex",strongCaps:["coding","review","data"]},
   {key:"openclaw",name:"OpenClaw（Discord接続済み・あなたのMac）",provider:"OpenClaw",modelId:"あなたのDiscordサーバーと接続済みのOpenClaw",cost:2,quality:78,speed:60,route:"openclaw",strongCaps:["automation","data","research","summary"],note:"あなたのMacBook Airで動くOpenClaw（ワークスペース /Users/konpota/.openclaw/workspace、WebChatとDiscordで利用）。Discordのチャンネルやボットが絡むタスクはこのOpenClawが担当する。Discordへの実際の送信は、従来どおりあなたの確認後に限る。基盤モデルはMac側の設定依存。"},
   {key:"muse-konpota",name:"Muse / konpota",provider:"Muse（Meta）",modelId:"Muse Spark（Museアプリ側で自動更新）",cost:2,quality:87,speed:76,route:"muse",strongCaps:["planning","writing","reasoning","review","summary","research"]}
+ ],
+ recommendations:[
+  {key:"gemini-3-flash",name:"Gemini 3 Flash",provider:"Google",modelId:"gemini-3-flash-preview",cost:0,quality:85,speed:90,route:"manual",strongCaps:["research","image","data","summary","reasoning"],freeNote:"無料枠あり：Gemini APIに無料ティア（公式開発者ガイドで明記）。Google AI Studioでは上位のPro系も無料で試せる。入口はAI Studio / Geminiアプリ",reason:"調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",source:"Google AI for Developers 公式（2026-10-28確認）"},
+  {key:"claude-haiku-5-5",name:"Claude Haiku 5.5",provider:"Anthropic",modelId:"claude-haiku-5-5",cost:0,quality:84,speed:93,route:"manual",strongCaps:["summary","coding","writing","data"],freeNote:"無料利用可：FreeプランでもClaude.aiで選択できる（公式）。同シリーズの最新 Sonnet 5.5（2026-09-28発表）の無料範囲は未確認",reason:"最速クラスの小型モデル。要約や下書き、サブタスクの大量処理を無料枠で回す担当に向く",source:"Anthropic 公式（2026-10-28確認）"},
+  {key:"deepseek-v4-flash",name:"DeepSeek V4 Flash",provider:"DeepSeek",modelId:"deepseek-flash",cost:0,quality:86,speed:80,route:"manual",strongCaps:["reasoning","math","coding"],freeNote:"公式チャット（chat.deepseek.com / アプリ）は無料で使える。APIは無料ではなく従量課金だが、公式料金でも最安級（入力$0.15/100万トークン〜・オフピーク）",reason:"推論・数学・コーディングが強い。指揮官やSolとは別系統の意見役（セカンドオピニオン）として相互検証の幅が広がる",source:"DeepSeek API Docs 公式（2026-10-28確認）"},
+  {key:"grok-4-7",name:"Grok 4.7",provider:"xAI",modelId:"grok-4.7",cost:0,quality:90,speed:80,route:"manual",strongCaps:["research","reasoning","coding"],freeNote:"無料枠あり：XのFreeプラン（$0）でGrokへの毎日のアクセス（上限あり）が含まれる（公式）。APIは従量課金で無料ではない",reason:"X上のリアルタイム情報の調査が本命。投資の材料集めで、他のAIが拾えない速報・話題を拾える",source:"xAI 公式（2026-10-28確認）"}
  ]
 };
 function catalogToModels(cat){
  return cat.models.map(function(m,i){return {id:i+1,key:m.key,name:m.name,provider:m.provider,modelId:m.modelId,cost:m.cost,quality:m.quality,speed:m.speed,route:m.route||"other",note:m.note||"",enabled:true,caps:capScores(m.strongCaps||[])};});
 }
 function presets(){return catalogToModels(BUILTIN_CATALOG);}
-var state={commander:{name:BUILTIN_CATALOG.commander.name,modelId:BUILTIN_CATALOG.commander.modelId,cost:BUILTIN_CATALOG.commander.cost},models:presets(),projects:[],catalogVersion:BUILTIN_CATALOG.version,catalogCheckedAt:BUILTIN_CATALOG.checkedAt};
+var state={commander:{name:BUILTIN_CATALOG.commander.name,modelId:BUILTIN_CATALOG.commander.modelId,cost:BUILTIN_CATALOG.commander.cost},models:presets(),projects:[],catalogVersion:BUILTIN_CATALOG.version,catalogCheckedAt:BUILTIN_CATALOG.checkedAt,recAdded:[],recDismissed:[]};
+var activeCatalog=BUILTIN_CATALOG;
 var currentPlan=null;
 var editingModelId=null;
 var pendingCatalog=null;
@@ -216,7 +229,7 @@ var pendingCatalog=null;
 function loadState(){
  try{
   var raw=localStorage.getItem(STORE_KEY);
-  if(raw){var p=JSON.parse(raw);if(p&&Array.isArray(p.models)){state=p;return;}}
+  if(raw){var p=JSON.parse(raw);if(p&&Array.isArray(p.models)){state=p;if(!Array.isArray(state.recAdded))state.recAdded=[];if(!Array.isArray(state.recDismissed))state.recDismissed=[];return;}}
   var old=localStorage.getItem(OLD_STORE_KEY);
   if(old){var o=JSON.parse(old);if(o&&Array.isArray(o.projects))state.projects=o.projects;}
  }catch(e){}
@@ -316,9 +329,39 @@ function applyCatalog(cat){
   });
   if(cat.commander){state.commander={name:cat.commander.name||state.commander.name,modelId:cat.commander.modelId||state.commander.modelId,cost:(typeof cat.commander.cost==="number"?cat.commander.cost:state.commander.cost)};}
   state.catalogVersion=cat.version;state.catalogCheckedAt=cat.checkedAt||"";
+  activeCatalog=cat;
   pendingCatalog=null;saveState();init();renderCatalogInfo();
   alert("カタログ "+cat.version+" を適用しました。更新: "+(updated.join(", ")||"なし")+" / 追加: "+(added.join(", ")||"なし")+"（あなたの追加したAIは消していません）");
 }
+/* ===== おすすめ候補 ===== */
+function visibleRecs(){
+  var recs=(activeCatalog&&activeCatalog.recommendations)?activeCatalog.recommendations:[];
+  var registered={};state.models.forEach(function(m){registered[m.key]=1;});
+  return recs.filter(function(r){return !registered[r.key]&&state.recDismissed.indexOf(r.key)<0;});
+}
+function renderRecs(){
+  var el=document.getElementById("recList");if(!el)return;
+  var recs=visibleRecs();
+  el.innerHTML=recs.length?recs.map(function(r){
+    var strong=(r.strongCaps||[]).map(function(c){return CAP_LABEL[c]||c;});
+    return "<div class='model'><div class='row spread'><strong>"+esc(r.name)+"</strong><span><span class='chip'>無料利用あり</span> <span class='chip'>"+esc(r.provider)+"</span></span></div>"+
+    "<div class='sub'>ID: "+esc(r.modelId||"-")+" / 品質目安 "+r.quality+" / 速度目安 "+r.speed+"</div>"+
+    "<div>"+strong.map(function(s){return "<span class='chip'>"+esc(s)+"</span>";}).join("")+"</div>"+
+    "<p style='margin:6px 0'>おすすめ理由: "+esc(r.reason||"")+"</p>"+
+    "<div class='sub'>無料の範囲: "+esc(r.freeNote||"")+"</div>"+
+    "<div class='sub'>出典: "+esc(r.source||"")+"</div>"+
+    "<div class='row' style='margin-top:6px'><button class='small primary' onclick='addRecommendation(\""+esc(r.key)+"\")'>候補に追加する</button><button class='small' onclick='dismissRecommendation(\""+esc(r.key)+"\")'>表示しない</button></div></div>";
+  }).join(""):"<p class='sub'>今は新しいおすすめ候補はありません。週次チェックで新しいAIが見つかると、ここに出ます。</p>";
+}
+function addRecommendation(key){
+  var recs=(activeCatalog&&activeCatalog.recommendations)?activeCatalog.recommendations:[];
+  var r=null;recs.forEach(function(x){if(x.key===key)r=x;});if(!r)return;
+  var m={id:nextId(state.models),key:r.key,name:r.name,provider:r.provider,modelId:r.modelId,cost:r.cost||0,quality:r.quality,speed:r.speed,route:r.route||"manual",note:(r.freeNote||"")+" / "+(r.reason||""),enabled:true,caps:capScores(r.strongCaps||[])};
+  state.models.push(m);state.recAdded.push(key);saveState();renderModels();renderRecs();
+  alert(r.name+" を登録AIに追加しました");
+}
+function dismissRecommendation(key){state.recDismissed.push(key);saveState();renderRecs();}
+
 function showCatalogBanner(cat){
   pendingCatalog=cat;
   document.getElementById("catalogBanner").innerHTML="<div class='banner'><strong>新しいモデルカタログがあります: "+esc(cat.version)+"</strong>（確認日 "+esc(cat.checkedAt||"-")+"）<div class='sub'>"+esc(cat.source||"")+"</div><div style='margin-top:6px'><button class='primary small' onclick='applyPendingCatalog()'>カタログを適用する</button> <button class='small' onclick='dismissCatalog()'>後で</button></div></div>";
@@ -328,6 +371,7 @@ function dismissCatalog(){pendingCatalog=null;document.getElementById("catalogBa
 function checkCatalog(manual){
   if(typeof fetch==="undefined"||location.protocol.indexOf("http")!==0){if(manual)alert("公開ページ（https）で開いたときに自動確認します。ファイルで開いている場合は、カタログJSONを読み込んでください。");return;}
   fetch("model-catalog.json",{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("http");return r.json();}).then(function(cat){
+    if(cat&&Array.isArray(cat.models)){activeCatalog=cat;renderRecs();}
     if(cat&&cat.version&&cat.version!==state.catalogVersion){showCatalogBanner(cat);}
     else if(manual){alert("カタログは最新です（"+state.catalogVersion+"）");}
   }).catch(function(){if(manual)alert("カタログを取得できませんでした");});
@@ -335,8 +379,8 @@ function checkCatalog(manual){
 function importCatalog(ev){
   var f=ev.target.files[0];if(!f)return;var r=new FileReader();
   r.onload=function(){try{var cat=JSON.parse(r.result);if(!cat||!Array.isArray(cat.models)||!cat.version)throw new Error("bad");
-    if(cat.version===state.catalogVersion){alert("同じバージョンです（"+cat.version+"）");return;}
-    showCatalogBanner(cat);}catch(e){alert("読み込めませんでした（カタログJSON形式を確認してください）");}};
+    if(cat.version===state.catalogVersion){activeCatalog=cat;renderRecs();alert("同じバージョンです（"+cat.version+"）");return;}
+    activeCatalog=cat;renderRecs();showCatalogBanner(cat);}catch(e){alert("読み込めませんでした（カタログJSON形式を確認してください）");}};
   r.readAsText(f);
 }
 function renderCatalogInfo(){
@@ -515,7 +559,7 @@ function init(){
   document.getElementById("cmdCost").value=(typeof state.commander.cost==="number"?state.commander.cost:21);
   document.getElementById("scoreExplain").textContent="スコア = 得意分野の適性 x 重み + 品質 x 重み + 速度 x 重み + 安さ x 重み。重みは優先モードで変わります（バランス: 適性.45/品質.25/速度.10/安さ.20、コスパ優先: 安さ.40、品質優先: 品質.40、速度優先: 速度.40）。レビュー担当は実行担当と別のAIを優先し、相互検証できる組み合わせにします。品質・速度スコアは目安で、アプリ内で編集できます。";
   var k=loadOaKey();if(k)document.getElementById("oaKey").value=k;
-  renderRouteOptions("api");renderCapChecks([]);renderModels();renderProjects();renderCatalogInfo();
+  renderRouteOptions("api");renderCapChecks([]);renderModels();renderProjects();renderCatalogInfo();renderRecs();
 }
 loadState();init();checkCatalog(false);
 </script>
