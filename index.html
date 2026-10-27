@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>収支管理アプリ（端末保存版）</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1a1d21;--muted:#6b7280;--border:#e2e5ea;--accent:#2563eb;--plus:#0a7d4f;--minus:#c0392b;--chip:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1e232b;--text:#e8eaed;--muted:#9aa3af;--border:#333a45;--accent:#6ea8fe;--chip:#26314d}}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding:16px 14px 60px}
+h1{font-size:20px;margin:6px 0 2px}
+h2{font-size:16px;margin:0 0 10px}
+section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin:12px 0}
+.sub{color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{justify-content:space-between}
+button{font:inherit;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.small{padding:2px 8px;font-size:13px}
+button.danger{color:var(--minus)}
+input,select,textarea{font:inherit;border:1px solid var(--border);border-radius:8px;padding:7px 9px;background:var(--card);color:var(--text);width:100%}
+textarea{min-height:90px}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:560px){.grid3{grid-template-columns:1fr 1fr}}
+.big{font-size:22px;font-weight:700}
+.plus{color:var(--plus)}.minus{color:var(--minus)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:6px 4px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+td.num,th.num{text-align:right;white-space:nowrap}
+.bar{height:8px;background:var(--chip);border-radius:4px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px}
+.toggle button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.trend{display:flex;align-items:flex-end;gap:4px;height:90px;margin-top:8px}
+.trend div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--muted)}
+.trend .col{width:100%;display:flex;align-items:flex-end;gap:2px;height:64px}
+.trend .col i{flex:1;display:block;border-radius:3px 3px 0 0}
+.notice{border-left:4px solid var(--accent);padding-left:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>収支管理アプリ</h1>
+<div class="sub">端末保存版：データはこの端末のブラウザ内にだけ保存されます。定期的に「データを書き出す」でバックアップしてください。</div>
+
+<div class="row" style="margin-top:12px">
+  <div class="toggle row">
+    <button id="btnMonthly" class="on" onclick="setView('monthly')">月別</button>
+    <button id="btnYearly" onclick="setView('yearly')">年間まとめ</button>
+  </div>
+</div>
+
+<div id="monthlyView">
+  <div class="row spread" style="margin-top:10px">
+    <button onclick="moveMonth(-1)">← 前月</button>
+    <strong id="monthLabel"></strong>
+    <button onclick="moveMonth(1)">翌月 →</button>
+  </div>
+  <section><h2>今月の収支</h2><div id="summary"></div></section>
+  <section><h2>バイト収入の合計</h2><div id="baito"></div></section>
+  <section>
+    <h2 id="formTitle">記録を追加</h2>
+    <div class="grid">
+      <div><label>日付</label><input type="date" id="fDate"></div>
+      <div><label>収入／支出</label><select id="fKind" onchange="fillGroups()"><option value="expense">支出</option><option value="income">収入</option></select></div>
+      <div><label>金額（円）</label><input type="number" id="fAmount" min="1" step="1" inputmode="numeric"></div>
+      <div><label>分類</label><select id="fGroup"></select></div>
+      <div><label>カテゴリ</label><select id="fCategory"></select></div>
+      <div><label>内容・メモ</label><input type="text" id="fMemo" placeholder="例：飯、バイト"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="fSubmit" onclick="submitTx()">追加する</button>
+      <button id="fCancel" style="display:none" onclick="cancelEdit()">編集をやめる</button>
+    </div>
+  </section>
+  <section><h2>今月の一覧</h2><div id="txList"></div></section>
+  <section><h2>分類別・カテゴリ別</h2><div id="breakdown"></div></section>
+  <section><h2>月ごとの推移（直近12か月）</h2><div id="trend"></div></section>
+  <section><h2>無駄遣い候補</h2><div id="waste"></div></section>
+</div>
+
+<div id="yearlyView" style="display:none">
+  <div class="row spread" style="margin-top:10px">
+    <button onclick="moveYear(-1)">← 前年</button>
+    <strong id="yearLabel"></strong>
+    <button onclick="moveYear(1)">翌年 →</button>
+  </div>
+  <section><h2>年間まとめ</h2><div id="yearSummary"></div></section>
+</div>
+
+<section>
+  <h2>年末計上リスト</h2>
+  <div id="fxSummary"></div>
+  <div id="yeList" style="margin-top:8px"></div>
+  <div class="grid" style="margin-top:10px">
+    <div><label>項目名</label><input type="text" id="yTitle" placeholder="例：サブスク年会費"></div>
+    <div><label>金額（円）</label><input type="number" id="yAmount" min="1" step="1" inputmode="numeric"></div>
+    <div><label>収入／支出</label><select id="yKind"><option value="expense">支出</option><option value="income">収入</option></select></div>
+    <div><label>分類</label><select id="yGroup"><option>サブスク</option><option>投資分</option><option>クレカ</option><option>普通（現金・デビット）</option><option>現金</option></select></div>
+    <div><label>対象年</label><input type="number" id="yYear" step="1"></div>
+    <div><label>メモ</label><input type="text" id="yNote"></div>
+  </div>
+  <div style="margin-top:10px"><button class="primary" onclick="addYearEnd()">リストに追加</button></div>
+  <p class="sub">未計上の間は月次集計に入りません。「計上する」で対象年の12月31日付の記録になります。サブスク分類の項目は、計上時はクレカ分類で記録されます。サブスク分類の項目を計上すると、翌年分（同額）が自動で用意されます。</p>
+</section>
+
+<section>
+  <h2>メモ</h2>
+  <textarea id="memoText" placeholder="自由に書き込めます"></textarea>
+  <div class="row" style="margin-top:8px">
+    <button class="primary" onclick="saveMemo()">メモを保存する</button>
+    <span class="sub" id="memoStatus"></span>
+  </div>
+</section>
+
+<section>
+  <h2>データの書き出し・読み込み（引っ越し・バックアップ）</h2>
+  <div class="row">
+    <button onclick="exportData()">データを書き出す（JSON）</button>
+    <label style="margin:0">JSONを読み込む<input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)"></label>
+  </div>
+  <p class="sub">最初に使うときは、一緒に渡した shushi-data.json を「JSONを読み込む」から読み込んでください（今までの記録79件と年末計上リストが入ります）。読み込むと今この端末にあるデータは置き換わります。</p>
+</section>
+</main>
+<script>
+"use strict";
+/* ===== 定数 ===== */
+var EXP_GROUPS=["普通（現金・デビット）","クレカ","投資分","サブスク"];
+var INC_GROUPS=["現金","投資分"];
+var EXP_CATS=["食費","交通費","住居","光熱費・通信","日用品","娯楽","医療","教育","投資","その他"];
+var INC_CATS=["バイト","仕送り","副業","その他"];
+var CASH_EXP_GROUPS=["普通（現金・デビット）","クレカ","サブスク"];
+var STORE_KEY="shushi-app-v1";
+
+/* ===== 状態 ===== */
+var state={transactions:[],yearEndItems:[],memo:"",wasteDismissals:[]};
+function loadState(){
+  try{var raw=localStorage.getItem(STORE_KEY);if(raw){var p=JSON.parse(raw);if(p&&Array.isArray(p.transactions))state=p;}}catch(e){}
+  if(!Array.isArray(state.yearEndItems))state.yearEndItems=[];
+  if(!Array.isArray(state.wasteDismissals))state.wasteDismissals=[];
+  if(typeof state.memo!=="string")state.memo="";
+}
+function saveState(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){alert("保存できませんでした（ブラウザの空き容量不足の可能性があります）");}}
+function nextId(list){var m=0;list.forEach(function(x){if(x.id>m)m=x.id;});return m+1;}
+
+/* ===== 純粋な集計ロジック（DOM非依存） ===== */
+function yen(n){var s=(n<0?"-":"")+"¥"+Math.abs(Math.round(n)).toLocaleString("ja-JP");return s;}
+function ymOf(dateStr){return dateStr.slice(0,7);}
+function sumWhere(list,fn){var t=0;list.forEach(function(x){if(fn(x))t+=x.amount;});return t;}
+function poolOf(tx){
+  if(tx.group==="投資分")return "投資分";
+  return "現金";
+}
+function monthSummary(txs,month){
+  var inc=0,exp=0,pools={"現金":{inc:0,exp:0},"投資分":{inc:0,exp:0}};
+  txs.forEach(function(t){
+    if(ymOf(t.date)!==month)return;
+    var p=poolOf(t);
+    if(t.kind==="income"){inc+=t.amount;pools[p].inc+=t.amount;}else{exp+=t.amount;pools[p].exp+=t.amount;}
+  });
+  var cum={"現金":0,"投資分":0};
+  txs.forEach(function(t){var p=poolOf(t);cum[p]+= (t.kind==="income"?t.amount:-t.amount);});
+  return {income:inc,expense:exp,balance:inc-exp,
+    cashBalance:pools["現金"].inc-pools["現金"].exp,
+    fxBalance:pools["投資分"].inc-pools["投資分"].exp,
+    cashCumulative:cum["現金"],fxCumulative:cum["投資分"]};
+}
+function baitoTotals(txs,month){
+  var year=month.slice(0,4),m=0,mc=0,y=0,yc=0,a=0,ac=0;
+  txs.forEach(function(t){
+    if(t.kind!=="income"||t.category!=="バイト")return;
+    a+=t.amount;ac++;
+    if(t.date.slice(0,4)===year){y+=t.amount;yc++;}
+    if(ymOf(t.date)===month){m+=t.amount;mc++;}
+  });
+  return {month:m,monthCount:mc,year:y,yearCount:yc,all:a,allCount:ac};
+}
+function groupBreakdown(txs,month){
+  var rows=[];
+  EXP_GROUPS.forEach(function(g){rows.push({label:g,kind:"expense",count:0,total:0});});
+  INC_GROUPS.forEach(function(g){rows.push({label:g,kind:"income",count:0,total:0});});
+  txs.forEach(function(t){
+    if(ymOf(t.date)!==month)return;
+    rows.forEach(function(r){if(r.label===t.group&&r.kind===t.kind){r.count++;r.total+=t.amount;}});
+  });
+  return rows;
+}
+function categoryBreakdown(txs,month,kind){
+  var map={};
+  txs.forEach(function(t){
+    if(ymOf(t.date)!==month||t.kind!==kind)return;
+    if(!map[t.category])map[t.category]={category:t.category,count:0,total:0};
+    map[t.category].count++;map[t.category].total+=t.amount;
+  });
+  return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return b.total-a.total;});
+}
+function shiftMonth(month,delta){
+  var y=parseInt(month.slice(0,4),10),m=parseInt(month.slice(5,7),10)-1+delta;
+  var d=new Date(y,m,1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+function yearSummary(txs,year){
+  var months=[],inc=0,exp=0;
+  for(var i=1;i<=12;i++){
+    var month=year+"-"+String(i).padStart(2,"0");
+    var s=monthSummary(txs,month);
+    months.push({month:month,income:s.income,expense:s.expense,balance:s.balance,cashBalance:s.cashBalance,fxBalance:s.fxBalance});
+    inc+=s.income;exp+=s.expense;
+  }
+  var baito=0,baitoCount=0;
+  txs.forEach(function(t){if(t.kind==="income"&&t.category==="バイト"&&t.date.slice(0,4)===year){baito+=t.amount;baitoCount++;}});
+  return {months:months,income:inc,expense:exp,balance:inc-exp,baito:baito,baitoCount:baito,
+    cashYear:months.reduce(function(a,m){return a+m.cashBalance;},0),
+    fxYear:months.reduce(function(a,m){return a+m.fxBalance;},0)};
+}
+function fxYearSummary(txs,items,year){
+  var inc=0,exp=0,cnt=0;
+  txs.forEach(function(t){
+    if(t.group!=="投資分"||t.date.slice(0,4)!==year)return;
+    cnt++;if(t.kind==="income")inc+=t.amount;else exp+=t.amount;
+  });
+  var pInc=0,pExp=0,pIncC=0,pExpC=0;
+  items.forEach(function(it){
+    if(it.group!=="投資分"||it.status!=="pending"||String(it.year)!==year)return;
+    if(it.kind==="income"){pInc+=it.amount;pIncC++;}else{pExp+=it.amount;pExpC++;}
+  });
+  return {incomeTotal:inc,expenseTotal:exp,balance:inc-exp,transactionCount:cnt,
+    pendingIncomeTotal:pInc,pendingIncomeCount:pIncC,pendingExpenseTotal:pExp,pendingExpenseCount:pExpC};
+}
+function isAggregateMemo(memo){return memo.indexOf("メモの")===0;}
+function wasteCandidates(txs,dismissals,month){
+  var monthTxs=txs.filter(function(t){return ymOf(t.date)===month;});
+  var expenseTotal=sumWhere(monthTxs,function(t){return t.kind==="expense";});
+  var itemised=monthTxs.filter(function(t){return t.kind==="expense"&&!isAggregateMemo(t.memo||"");});
+  var hasItemised=itemised.length>0;
+  var out=[];
+  function dismissed(rule,key){return dismissals.indexOf(month+"|"+rule+"|"+key)>=0;}
+  if(hasItemised){
+    var byMemo={};
+    itemised.forEach(function(t){
+      var k=t.memo||"(内容なし)";
+      if(!byMemo[k])byMemo[k]={key:k,count:0,total:0};
+      byMemo[k].count++;byMemo[k].total+=t.amount;
+    });
+    Object.keys(byMemo).forEach(function(k){
+      var g=byMemo[k];
+      if(g.count>=2&&g.total>=1000&&!dismissed("repeat",k)){
+        out.push({rule:"repeat",itemKey:k,itemLabel:k,count:g.count,amount:g.total,
+          reason:"同じ項目が今月"+g.count+"回、合計"+yen(g.total)+"の支出です"});
+      }
+    });
+    var small=itemised.filter(function(t){return t.amount<1000;});
+    var smallTotal=sumWhere(small,function(){return true;});
+    if(small.length>0&&smallTotal>=1000&&!dismissed("small_purchases","small_purchases")){
+      out.push({rule:"small_purchases",itemKey:"small_purchases",itemLabel:"1,000円未満の少額支出",count:small.length,amount:smallTotal,
+        reason:"1,000円未満の支出が"+small.length+"件あり、合計"+yen(smallTotal)+"になっています"});
+    }
+    itemised.forEach(function(t){
+      if(t.amount>=5000&&!dismissed("large_item",String(t.id))){
+        out.push({rule:"large_item",itemKey:String(t.id),itemLabel:t.memo||"(内容なし)",count:1,amount:t.amount,
+          reason:"1件で"+yen(t.amount)+"の大きな支出です"});
+      }
+    });
+  }
+  var prevTotal=0,prevCount=0;
+  for(var i=1;i<=3;i++){
+    var pm=shiftMonth(month,-i);
+    prevTotal+=sumWhere(txs,function(t){return ymOf(t.date)===pm&&t.kind==="expense";});
+    prevCount++;
+  }
+  var prevAvg=prevCount?prevTotal/prevCount:0;
+  if(prevAvg>0&&expenseTotal>=prevAvg*1.5&&expenseTotal>0&&!dismissed("spike","spike")){
+    out.push({rule:"spike",itemKey:"spike",itemLabel:"今月の支出合計",count:monthTxs.filter(function(t){return t.kind==="expense";}).length,
+      amount:expenseTotal,prevAvgExpense:Math.round(prevAvg),ratio:Math.round(expenseTotal/prevAvg*10)/10,
+      reason:"今月の支出は直前3か月の平均（"+yen(prevAvg)+"）の"+(Math.round(expenseTotal/prevAvg*10)/10)+"倍です"});
+  }
+  out.forEach(function(c){c.sharePercent=expenseTotal?Math.round(c.amount/expenseTotal*1000)/10:0;});
+  out.sort(function(a,b){return b.amount-a.amount;});
+  return {candidates:out,expenseTotal:expenseTotal,hasItemisedData:hasItemised};
+}
+</script>
+<script>
+"use strict";
+/* ===== 画面状態 ===== */
+var view="monthly";
+var curMonth=(function(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})();
+var curYear=String(new Date().getFullYear());
+var editingId=null;
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function cls(n){return n>0?"plus":(n<0?"minus":"");}
+function setView(v){view=v;document.getElementById("monthlyView").style.display=v==="monthly"?"":"none";document.getElementById("yearlyView").style.display=v==="yearly"?"":"none";document.getElementById("btnMonthly").className=v==="monthly"?"on":"";document.getElementById("btnYearly").className=v==="yearly"?"on":"";render();}
+function moveMonth(d){curMonth=shiftMonth(curMonth,d);curYear=curMonth.slice(0,4);render();}
+function moveYear(d){curYear=String(parseInt(curYear,10)+d);render();}
+function gotoMonth(m){curMonth=m;curYear=m.slice(0,4);setView("monthly");}
+
+/* ===== 入力フォーム ===== */
+function fillGroups(){
+  var kind=document.getElementById("fKind").value;
+  var groups=kind==="income"?INC_GROUPS:EXP_GROUPS;
+  var cats=kind==="income"?INC_CATS:EXP_CATS;
+  document.getElementById("fGroup").innerHTML=groups.map(function(g){return "<option>"+esc(g)+"</option>";}).join("");
+  document.getElementById("fCategory").innerHTML=cats.map(function(c){return "<option>"+esc(c)+"</option>";}).join("");
+}
+function submitTx(){
+  var date=document.getElementById("fDate").value;
+  var amount=parseInt(document.getElementById("fAmount").value,10);
+  var kind=document.getElementById("fKind").value;
+  var group=document.getElementById("fGroup").value;
+  var category=document.getElementById("fCategory").value;
+  var memo=document.getElementById("fMemo").value.trim();
+  if(!date||!amount||amount<=0){alert("日付と金額（1円以上）を入れてください");return;}
+  if(editingId!=null){
+    state.transactions.forEach(function(t){if(t.id===editingId){t.date=date;t.amount=amount;t.kind=kind;t.group=group;t.category=category;t.memo=memo;}});
+    editingId=null;
+    document.getElementById("formTitle").textContent="記録を追加";
+    document.getElementById("fSubmit").textContent="追加する";
+    document.getElementById("fCancel").style.display="none";
+  }else{
+    state.transactions.push({id:nextId(state.transactions),date:date,kind:kind,amount:amount,group:group,category:category,memo:memo});
+  }
+  state.transactions.sort(function(a,b){return a.date<b.date?-1:(a.date>b.date?1:a.id-b.id);});
+  curMonth=date.slice(0,7);curYear=date.slice(0,4);
+  document.getElementById("fAmount").value="";document.getElementById("fMemo").value="";
+  saveState();render();
+}
+function editTx(id){
+  var t=null;state.transactions.forEach(function(x){if(x.id===id)t=x;});
+  if(!t)return;
+  editingId=id;
+  document.getElementById("fDate").value=t.date;
+  document.getElementById("fKind").value=t.kind;fillGroups();
+  document.getElementById("fGroup").value=t.group;
+  document.getElementById("fCategory").value=t.category;
+  document.getElementById("fAmount").value=t.amount;
+  document.getElementById("fMemo").value=t.memo||"";
+  document.getElementById("formTitle").textContent="記録を編集";
+  document.getElementById("fSubmit").textContent="保存する";
+  document.getElementById("fCancel").style.display="";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function cancelEdit(){editingId=null;document.getElementById("formTitle").textContent="記録を追加";document.getElementById("fSubmit").textContent="追加する";document.getElementById("fCancel").style.display="none";document.getElementById("fAmount").value="";document.getElementById("fMemo").value="";}
+function deleteTx(id){if(!confirm("この記録を削除しますか？"))return;state.transactions=state.transactions.filter(function(t){return t.id!==id;});saveState();render();}
+
+/* ===== 年末計上 ===== */
+function addYearEnd(){
+  var title=document.getElementById("yTitle").value.trim();
+  var amount=parseInt(document.getElementById("yAmount").value,10);
+  var year=parseInt(document.getElementById("yYear").value,10);
+  if(!title||!amount||amount<=0||!year){alert("項目名・金額・対象年を入れてください");return;}
+  state.yearEndItems.push({id:nextId(state.yearEndItems),title:title,amount:amount,
+    kind:document.getElementById("yKind").value,group:document.getElementById("yGroup").value,
+    category:"その他",year:year,note:document.getElementById("yNote").value.trim(),status:"pending",postedDate:null,postedTransactionId:null});
+  document.getElementById("yTitle").value="";document.getElementById("yAmount").value="";document.getElementById("yNote").value="";
+  saveState();render();
+}
+function deleteYearEnd(id){if(!confirm("この年末計上項目を削除しますか？"))return;state.yearEndItems=state.yearEndItems.filter(function(x){return x.id!==id;});saveState();render();}
+function postYearEnd(id){
+  var it=null;state.yearEndItems.forEach(function(x){if(x.id===id)it=x;});
+  if(!it||it.status!=="pending")return;
+  if(!confirm(it.title+"（"+yen(it.amount)+"）を"+it.year+"年12月31日付で計上しますか？"))return;
+  var group=it.group==="サブスク"?"クレカ":it.group;
+  var tx={id:nextId(state.transactions),date:it.year+"-12-31",kind:it.kind,amount:it.amount,group:group,category:it.category||"その他",memo:it.title};
+  state.transactions.push(tx);
+  it.status="posted";it.postedDate=it.year+"-12-31";it.postedTransactionId=tx.id;
+  if(it.group==="サブスク"){
+    var ny=it.year+1,exists=false;
+    state.yearEndItems.forEach(function(x){if(x.title===it.title&&x.year===ny)exists=true;});
+    if(!exists){state.yearEndItems.push({id:nextId(state.yearEndItems),title:it.title,amount:it.amount,kind:it.kind,group:it.group,category:it.category||"その他",year:ny,note:"年間分",status:"pending",postedDate:null,postedTransactionId:null});}
+  }
+  state.transactions.sort(function(a,b){return a.date<b.date?-1:(a.date>b.date?1:a.id-b.id);});
+  saveState();render();
+}
+
+/* ===== 無駄遣い候補 ===== */
+function dismissWaste(month,rule,key){
+  var k=month+"|"+rule+"|"+key;
+  if(state.wasteDismissals.indexOf(k)<0)state.wasteDismissals.push(k);
+  saveState();render();
+}
+
+/* ===== メモ・データ ===== */
+function saveMemo(){
+  state.memo=document.getElementById("memoText").value;
+  saveState();
+  document.getElementById("memoStatus").textContent="保存しました";
+}
+function exportData(){
+  var blob=new Blob([JSON.stringify(state,null,1)],{type:"application/json"});
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="shushi-data-export.json";a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+}
+function importData(ev){
+  var f=ev.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var p=JSON.parse(r.result);
+      if(!p||!Array.isArray(p.transactions))throw new Error("bad");
+      if(!confirm("読み込むと今この端末にあるデータは置き換わります。続けますか？"))return;
+      state={transactions:p.transactions,yearEndItems:Array.isArray(p.yearEndItems)?p.yearEndItems:[],memo:typeof p.memo==="string"?p.memo:"",wasteDismissals:Array.isArray(p.wasteDismissals)?p.wasteDismissals:[]};
+      saveState();
+      var latest=state.transactions.length?state.transactions[state.transactions.length-1].date:null;
+      if(latest){curMonth=latest.slice(0,7);curYear=latest.slice(0,4);}
+      document.getElementById("memoText").value=state.memo;
+      render();alert("読み込みました");
+    }catch(e){alert("読み込めませんでした（JSON形式を確認してください）");}
+  };
+  r.readAsText(f);
+}
+
+/* ===== 描画 ===== */
+function barRow(label,total,max){
+  var pct=max?Math.round(total/max*100):0;
+  return "<tr><td>"+esc(label)+"</td><td style='width:45%'><div class='bar'><i style='width:"+pct+"%'></i></div></td><td class='num'>"+yen(total)+"</td></tr>";
+}
+function render(){
+  var txs=state.transactions;
+  document.getElementById("monthLabel").textContent=curMonth.replace("-","年")+"月";
+  document.getElementById("yearLabel").textContent=curYear+"年";
+  /* サマリー */
+  var s=monthSummary(txs,curMonth);
+  document.getElementById("summary").innerHTML=
+    "<div class='grid3'>"+
+    "<div><div class='sub'>収入</div><div class='big plus'>"+yen(s.income)+"</div></div>"+
+    "<div><div class='sub'>支出</div><div class='big minus'>"+yen(s.expense)+"</div></div>"+
+    "<div><div class='sub'>収支</div><div class='big "+cls(s.balance)+"'>"+yen(s.balance)+"</div></div>"+
+    "<div><div class='sub'>現金の収支</div><div><strong class='"+cls(s.cashBalance)+"'>"+yen(s.cashBalance)+"</strong></div><div class='sub'>累計 "+yen(s.cashCumulative)+"</div></div>"+
+    "<div><div class='sub'>投資分の収支</div><div><strong class='"+cls(s.fxBalance)+"'>"+yen(s.fxBalance)+"</strong></div><div class='sub'>累計 "+yen(s.fxCumulative)+"</div></div>"+
+    "</div>";
+  /* バイト */
+  var b=baitoTotals(txs,curMonth);
+  document.getElementById("baito").innerHTML=
+    "<div class='sub'>"+curMonth.slice(0,4)+"年の合計</div><div class='big'>"+yen(b.year)+"</div>"+
+    "<div class='row'><span>今月：<strong>"+yen(b.month)+"</strong>（"+b.monthCount+"件）</span><span>全期間：<strong>"+yen(b.all)+"</strong>（"+b.allCount+"件）</span></div>"+
+    "<p class='sub'>累進課税・社会保険・扶養の確認用に、バイトカテゴリの収入だけを集計しています（判定はしていません）。</p>";
+  /* 一覧 */
+  var list=txs.filter(function(t){return ymOf(t.date)===curMonth;});
+  if(!list.length){document.getElementById("txList").innerHTML="<p class='sub'>この月の記録はありません。</p>";}
+  else{
+    document.getElementById("txList").innerHTML="<table>"+list.map(function(t){
+      return "<tr><td>"+esc(t.date.slice(5))+"</td><td>"+esc(t.memo||"")+"<div class='sub'>"+esc(t.group)+"／"+esc(t.category)+"</div></td>"+
+      "<td class='num "+(t.kind==="income"?"plus":"minus")+"'>"+(t.kind==="income"?"+":"-")+yen(t.amount).replace("¥","¥")+"</td>"+
+      "<td class='num'><button class='small' onclick='editTx("+t.id+")'>編集</button> <button class='small danger' onclick='deleteTx("+t.id+")'>削除</button></td></tr>";
+    }).join("")+"</table>";
+  }
+  /* 内訳 */
+  var gb=groupBreakdown(txs,curMonth);
+  var maxG=0;gb.forEach(function(r){if(r.total>maxG)maxG=r.total;});
+  var html="<table>"+gb.map(function(r){return barRow(r.label+"（"+(r.kind==="income"?"収入":"支出")+"）",r.total,maxG);}).join("")+"</table>";
+  ["expense","income"].forEach(function(kind){
+    var cb=categoryBreakdown(txs,curMonth,kind);
+    if(!cb.length)return;
+    var mx=0;cb.forEach(function(r){if(r.total>mx)mx=r.total;});
+    html+="<p class='sub' style='margin-top:10px'>カテゴリ別（"+(kind==="expense"?"支出":"収入")+"）</p><table>"+cb.map(function(r){return barRow(r.category,r.total,mx);}).join("")+"</table>";
+  });
+  document.getElementById("breakdown").innerHTML=html;
+  /* 推移 */
+  var months=[];for(var i=11;i>=0;i--)months.push(shiftMonth(curMonth,-i));
+  var maxT=1;var vals=months.map(function(m){var ms=monthSummary(txs,m);if(ms.income>maxT)maxT=ms.income;if(ms.expense>maxT)maxT=ms.expense;return ms;});
+  document.getElementById("trend").innerHTML="<div class='trend'>"+months.map(function(m,i){
+    var ih=Math.round(vals[i].income/maxT*64),eh=Math.round(vals[i].expense/maxT*64);
+    return "<div><div class='col'><i style='height:"+ih+"px;background:var(--plus)'></i><i style='height:"+eh+"px;background:var(--minus)'></i></div>"+esc(m.slice(5))+"月</div>";
+  }).join("")+"</div><p class='sub'>緑＝収入、赤＝支出</p>";
+  /* 無駄遣い候補 */
+  var w=wasteCandidates(txs,state.wasteDismissals,curMonth);
+  var wh="";
+  if(!w.hasItemisedData)wh+="<p class='sub'>この月は明細データがないため、項目レベルの検出はできません（急増のみチェックしています）。</p>";
+  if(!w.candidates.length)wh+="<p>候補はありません。</p>";
+  else wh+="<table>"+w.candidates.map(function(c){
+    return "<tr><td><strong>"+esc(c.itemLabel)+"</strong><div class='sub'>"+esc(c.reason)+"</div></td><td class='num'>"+yen(c.amount)+"<div class='sub'>月の支出の"+c.sharePercent+"%</div></td>"+
+    "<td class='num'><button class='small' onclick='dismissWaste(\""+curMonth+"\",\""+c.rule+"\",\""+esc(c.itemKey)+"\")'>無駄じゃない</button></td></tr>";
+  }).join("")+"</table><p class='sub'>あくまで候補です。無駄かどうかは「無駄じゃない」で外せます（その月だけ外れます）。</p>";
+  document.getElementById("waste").innerHTML=wh;
+  /* 年間まとめ */
+  var ys=yearSummary(txs,curYear);
+  var isPast=parseInt(curYear,10)<new Date().getFullYear();
+  document.getElementById("yearSummary").innerHTML=
+    (isPast?"<p><span class='chip'>終了した年（1月〜12月）</span></p>":"")+
+    "<div class='grid3'>"+
+    "<div><div class='sub'>年間収入</div><div class='big plus'>"+yen(ys.income)+"</div></div>"+
+    "<div><div class='sub'>年間支出</div><div class='big minus'>"+yen(ys.expense)+"</div></div>"+
+    "<div><div class='sub'>年間収支</div><div class='big "+cls(ys.balance)+"'>"+yen(ys.balance)+"</div></div>"+
+    "<div><div class='sub'>現金の年間収支</div><strong class='"+cls(ys.cashYear)+"'>"+yen(ys.cashYear)+"</strong></div>"+
+    "<div><div class='sub'>投資分の年間収支</div><strong class='"+cls(ys.fxYear)+"'>"+yen(ys.fxYear)+"</strong></div>"+
+    "<div><div class='sub'>バイト収入（年間）</div><strong>"+yen(ys.baito)+"</strong>（"+ys.baitoCount+"件）</div>"+
+    "</div>"+
+    "<table style='margin-top:10px'><tr><th>月</th><th class='num'>収入</th><th class='num'>支出</th><th class='num'>収支</th><th class='num'>現金</th><th class='num'>投資分</th></tr>"+
+    ys.months.map(function(m){
+      return "<tr onclick='gotoMonth(\""+m.month+"\")' style='cursor:pointer'><td>"+esc(m.month.slice(5))+"月</td><td class='num'>"+yen(m.income)+"</td><td class='num'>"+yen(m.expense)+"</td><td class='num "+cls(m.balance)+"'>"+yen(m.balance)+"</td><td class='num'>"+yen(m.cashBalance)+"</td><td class='num'>"+yen(m.fxBalance)+"</td></tr>";
+    }).join("")+"</table><p class='sub'>月を押すと月別表示に移ります。</p>";
+  /* FX年末締め＋年末リスト */
+  var fx=fxYearSummary(txs,state.yearEndItems,curYear);
+  document.getElementById("fxSummary").innerHTML=
+    "<div class='notice'><strong>投資分（FX）の年末締め（"+curYear+"年）</strong><br>収入 "+yen(fx.incomeTotal)+"／支出 "+yen(fx.expenseTotal)+"／収支 <strong class='"+cls(fx.balance)+"'>"+yen(fx.balance)+"</strong>"+
+    (fx.pendingExpenseCount||fx.pendingIncomeCount?"<br><span class='sub'>未計上の投資分：収入 "+yen(fx.pendingIncomeTotal)+"（"+fx.pendingIncomeCount+"件）、支出 "+yen(fx.pendingExpenseTotal)+"（"+fx.pendingExpenseCount+"件）</span>":"")+"</div>";
+  var items=state.yearEndItems.slice().sort(function(a,b){return a.year-b.year||a.id-b.id;});
+  document.getElementById("yeList").innerHTML=items.length?("<table>"+items.map(function(it){
+    return "<tr><td><strong>"+esc(it.title)+"</strong>（"+it.year+"年）<div class='sub'>"+esc(it.group)+"／"+(it.kind==="income"?"収入":"支出")+(it.note?"／"+esc(it.note):"")+"</div></td>"+
+    "<td class='num'>"+yen(it.amount)+"</td>"+
+    "<td class='num'>"+(it.status==="posted"?"<span class='chip'>計上済み</span><div class='sub'>"+esc(it.postedDate||"")+"付</div>":"<button class='small primary' onclick='postYearEnd("+it.id+")'>計上する</button>")+
+    " <button class='small danger' onclick='deleteYearEnd("+it.id+")'>削除</button></td></tr>";
+  }).join("")+"</table>"):"<p class='sub'>項目はありません。</p>";
+}
+
+/* ===== 初期化 ===== */
+loadState();
+fillGroups();
+(function(){
+  var d=new Date();
+  document.getElementById("fDate").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  document.getElementById("yYear").value=d.getFullYear();
+  if(state.transactions.length){
+    var latest=state.transactions[state.transactions.length-1].date;
+    curMonth=latest.slice(0,7);curYear=latest.slice(0,4);
+  }
+  document.getElementById("memoText").value=state.memo;
+  document.getElementById("memoText").addEventListener("input",function(){document.getElementById("memoStatus").textContent="未保存の変更があります";});
+  render();
+})();
+</script>
+</body>
+</html>
