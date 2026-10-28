@@ -40,7 +40,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px s
 <body>
 <main>
 <h1>AI連携・指揮官</h1>
-<div class="sub">端末保存版 v2：データはこの端末のブラウザ内にだけ保存されます。使うAIは、あなたが実際に使える OpenAI（Codex含む）／OpenClaw／Muse に絞ってあります。指揮官（ChatGPT最上位モデル）がタスクを分解し、適性・品質・速度・コストで担当を選びます。</div>
+<div class="sub">端末保存版 v2：データはこの端末のブラウザ内にだけ保存されます。使うAIは、あなたが実際に使える OpenAI（Codex含む）／OpenClaw／Muse に絞ってあります。指揮官（ChatGPTのChat機能のGPT-6）がタスクを分解し、適性・品質・速度・コストで担当を選びます。利用方法はAIごとに分けています（2026-10-28決定）：ChatGPT系・Codex・OpenClaw・MuseはMac経由、その他のAIは候補として表示するだけで自動では使いません。指揮官はChat機能のためトークン消費なしの前提で、インテリジェンスは常に最大です。各ステップの「渡し先」に方法が表示されます。</div>
 
 <section>
   <h2>指揮官（コマンダー）</h2>
@@ -49,7 +49,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px s
     <div><label>モデルID（自分のプランで使える最上位に編集可）</label><input id="cmdModelId"></div>
     <div><label>1サブタスクあたり概算コスト（円）</label><input id="cmdCost" type="number" min="0" step="1"></div>
   </div>
-  <p class="sub">初期値 gpt-6-astra は、OpenAI公式料金ページ（2026-10-28確認）で最上位に載るモデルです。公式ヘルプでは、PlusではAstraはWorkとCodexの中で使え、ChatのGPT-6 ProはPro等のプラン向けとされています。自分のプランで使える最上位に合わせて編集してください。</p>
+  <p class="sub">指揮官はChatGPTのChat機能のGPT-6を使う設定です（2026-10-28決定）。Chat機能はトークン消費がない前提のため概算コストは¥0とし、インテリジェンス（思考レベル）は常に最大に固定しています。節約モードの対象は、API・Codex系の高モデルだけです。API側の最上位モデルは gpt-6-astra（OpenAI公式料金ページ、2026-10-28確認）で、比較表示の「最上位モデル単独」の概算はこちらを使います。</p>
   <button onclick="saveCommander()">指揮官設定を保存</button>
   <span id="cmdSaved" class="sub"></span>
 </section>
@@ -89,8 +89,8 @@ pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px s
       </select></div>
     <div><label>予算上限（円・概算／0なら無制限）</label><input id="tBudget" type="number" min="0" step="10" placeholder="例：100"></div>
   </div>
-  <label style="display:flex;gap:6px;align-items:center;margin-top:10px;color:var(--text);font-size:14px"><input type="checkbox" id="tSavings" checked style="width:auto"> トークン節約モード（高モデルは難易度「難」のときだけ使う／易しいタスクは指揮官も代行させる）</label>
-  <p class="sub">難易度はタスク文から自動判定し、思考レベル（インテリジェンス）も難易度に合わせて各ステップで自動調整します。重要な語（投資判断・契約・医療など）を含む難しいタスクだけ、思考レベルを最大にします。</p>
+  <label style="display:flex;gap:6px;align-items:center;margin-top:10px;color:var(--text);font-size:14px"><input type="checkbox" id="tSavings" checked style="width:auto"> トークン節約モード（API・Codex系の高モデルは難易度「難」のときだけ使う。指揮官はChat版GPT-6で常時担当し、思考は常に最大）</label>
+  <p class="sub">難易度はタスク文から自動判定し、思考レベル（インテリジェンス）も難易度に合わせて各ステップで自動調整します。重要な語（投資判断・契約・医療など）を含む難しいタスクだけ、思考レベルを最大にします。ただし指揮官（Chat版GPT-6）のステップは、Chat機能はトークン消費なしの前提で常に思考レベル最大です。</p>
   <div style="margin-top:10px"><button class="primary" onclick="makePlan()">指揮官に計画を作らせる</button></div>
   <div id="planView" style="margin-top:10px"></div>
 </section>
@@ -185,7 +185,7 @@ var ROUTES={
  codex:"Mac経由（Codex・起動はあなた）",
  openclaw:"Mac経由（OpenClaw・Discord接続済み）",
  muse:"Muse / konpota（このチャットで直接実行）",
- web:"Muse Web経由（konpotaのブラウザでWeb版を操作）",
+ web:"手動で実行（Web版を自分で開く）",
  manual:"手動で実行",
  other:"その他"
 };
@@ -204,10 +204,10 @@ var KEYWORDS={
 };
 function capScores(strong){var o={};CAPS.forEach(function(c){o[c.id]=strong.indexOf(c.id)>=0?90:40;});o.planning=strong.indexOf("planning")>=0?90:45;return o;}
 var BUILTIN_CATALOG={
- version:"2026-10-28.7",checkedAt:"2026-10-28",
- source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）／ 利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由、その他のAIはMuse Web経由",
- costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
- commander:{name:"ChatGPT（最上位モデル）",modelId:"gpt-6-astra",cost:21},
+ version:"2026-10-28.9",checkedAt:"2026-10-28",
+ source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）／ 利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由。指揮官はChatGPTのChat機能のGPT-6（トークン消費なしの前提で概算¥0・インテリジェンスは常に最大）。その他のAIは候補表示のみで自動では使わない（Web経由の利用は廃止） Geminiのおすすめは3.8 Flashに更新（Google公式 2026-10-28確認）。",
+ costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。指揮官（Chat版GPT-6）はChat機能のためトークン消費なしの前提で概算¥0（2026-10-28ユーザー指示）。",
+ commander:{name:"ChatGPT（Chat版 GPT-6・指揮官）",modelId:"gpt-6",cost:0},
  models:[
   {key:"gpt-6-1-sol",name:"GPT-6.1 Sol",provider:"OpenAI",modelId:"gpt-6.1-sol",cost:4,quality:95,speed:78,route:"mac-chatgpt",tier:"high",capScores:{math:90},strongCaps:["reasoning","coding","writing","research","review","summary","image"],note:"利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"},
   {key:"gpt-6-1-terra",name:"GPT-6.1 Terra",provider:"OpenAI",modelId:"gpt-6.1-terra",cost:2,quality:88,speed:85,route:"mac-chatgpt",tier:"mid",capScores:{coding:70,math:65,review:65},strongCaps:["reasoning","writing","data","summary","research"],note:"利用方法はMac経由のChatGPT（2026-10-28決定）。ChatGPTの画面で選べるモデルはプラン依存で、このモデル名はAPI側の目安。API契約があればAPIでも実行できる。"},
@@ -217,10 +217,10 @@ var BUILTIN_CATALOG={
   {key:"muse-konpota",name:"Muse / konpota",provider:"Muse（Meta）",modelId:"Muse Spark（Museアプリ側で自動更新）",cost:2,quality:87,speed:76,route:"muse",tier:"mid",capScores:{coding:70,math:70},strongCaps:["planning","writing","reasoning","review","summary","research"]},
  ],
  recommendations:[
-  {key:"gemini-3-flash",name:"Gemini 3 Flash",provider:"Google",modelId:"gemini-3-flash-preview",cost:0,quality:85,speed:90,route:"web",tier:"low",capScores:{coding:70},strongCaps:["research","image","data","summary","reasoning"],freeNote:"無料枠あり：Gemini APIに無料ティア（公式開発者ガイドで明記）。Google AI Studioでは上位のPro系も無料で試せる。入口はAI Studio / Geminiアプリ",reason:"調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",source:"Google AI for Developers 公式（2026-10-28確認）"},
-  {key:"claude-haiku-5-5",name:"Claude Haiku 5.5",provider:"Anthropic",modelId:"claude-haiku-5-5",cost:0,quality:84,speed:93,route:"web",tier:"low",strongCaps:["summary","coding","writing","data"],freeNote:"無料利用可：FreeプランでもClaude.aiで選択できる（公式）。同シリーズの最新 Sonnet 5.5（2026-09-28発表）の無料範囲は未確認",reason:"最速クラスの小型モデル。要約や下書き、サブタスクの大量処理を無料枠で回す担当に向く",source:"Anthropic 公式（2026-10-28確認）"},
-  {key:"deepseek-v4-flash",name:"DeepSeek V4 Flash",provider:"DeepSeek",modelId:"deepseek-flash",cost:0,quality:86,speed:80,route:"web",tier:"mid",strongCaps:["reasoning","math","coding"],freeNote:"公式チャット（chat.deepseek.com / アプリ）は無料で使える。APIは無料ではなく従量課金だが、公式料金でも最安級（入力$0.15/100万トークン〜・オフピーク）",reason:"推論・数学・コーディングが強い。指揮官やSolとは別系統の意見役（セカンドオピニオン）として相互検証の幅が広がる",source:"DeepSeek API Docs 公式（2026-10-28確認）"},
-  {key:"grok-4-7",name:"Grok 4.7",provider:"xAI",modelId:"grok-4.7",cost:0,quality:90,speed:80,route:"web",tier:"mid",capScores:{math:70},strongCaps:["research","reasoning","coding"],freeNote:"無料枠あり：XのFreeプラン（$0）でGrokへの毎日のアクセス（上限あり）が含まれる（公式）。APIは従量課金で無料ではない",reason:"X上のリアルタイム情報の調査が本命。投資の材料集めで、他のAIが拾えない速報・話題を拾える",source:"xAI 公式（2026-10-28確認）"}
+  {key:"gemini-3.8-flash",name:"Gemini 3.8 Flash",provider:"Google",modelId:"gemini-3.8-flash",cost:0,quality:85,speed:90,route:"manual",tier:"low",capScores:{coding:70},strongCaps:["research","image","data","summary","reasoning"],freeNote:"無料枠あり：Gemini APIの無料ティア対象（公式料金ページでFlashの入出力が無料と明記）。有料枠は導入価格 $0.75/$3.75（100万トークン入/出、2026-12-31まで、2027-01-01から$1.50/$7.50）。入口はAI Studio / Geminiアプリ",reason:"調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",source:"Google AI for Developers 公式（2026-10-28確認：料金ページ・Gemini 3.8 Flash紹介・廃止一覧）"},
+  {key:"claude-haiku-5-5",name:"Claude Haiku 5.5",provider:"Anthropic",modelId:"claude-haiku-5-5",cost:0,quality:84,speed:93,route:"manual",tier:"low",strongCaps:["summary","coding","writing","data"],freeNote:"無料利用可：FreeプランでもClaude.aiで選択できる（公式）。同シリーズの最新 Sonnet 5.5（2026-09-28発表）の無料範囲は未確認",reason:"最速クラスの小型モデル。要約や下書き、サブタスクの大量処理を無料枠で回す担当に向く",source:"Anthropic 公式（2026-10-28確認）"},
+  {key:"deepseek-v4-flash",name:"DeepSeek V4 Flash",provider:"DeepSeek",modelId:"deepseek-flash",cost:0,quality:86,speed:80,route:"manual",tier:"mid",strongCaps:["reasoning","math","coding"],freeNote:"公式チャット（chat.deepseek.com / アプリ）は無料で使える。APIは無料ではなく従量課金だが、公式料金でも最安級（入力$0.15/100万トークン〜・オフピーク）",reason:"推論・数学・コーディングが強い。指揮官やSolとは別系統の意見役（セカンドオピニオン）として相互検証の幅が広がる",source:"DeepSeek API Docs 公式（2026-10-28確認）"},
+  {key:"grok-4-7",name:"Grok 4.7",provider:"xAI",modelId:"grok-4.7",cost:0,quality:90,speed:80,route:"manual",tier:"mid",capScores:{math:70},strongCaps:["research","reasoning","coding"],freeNote:"無料枠あり：XのFreeプラン（$0）でGrokへの毎日のアクセス（上限あり）が含まれる（公式）。APIは従量課金で無料ではない",reason:"X上のリアルタイム情報の調査が本命。投資の材料集めで、他のAIが拾えない速報・話題を拾える",source:"xAI 公式（2026-10-28確認）"}
  ]
 };
 function catalogToModels(cat){
@@ -320,7 +320,8 @@ function buildPlan(task,models,commander){
   var savings=task.savings!==false;
   var sig=textSignals((task.title||"")+" "+(task.body||""));
   var steps=decomposeTask(task);
-  var cmdCost=(typeof commander.cost==="number"&&commander.cost>0)?commander.cost:21;
+  var cmdCost=(typeof commander.cost==="number")?commander.cost:0;
+  var refTopCost=cmdCost>0?cmdCost:21;
   var execPick={};
   var planSteps=steps.map(function(s){
     var diff;
@@ -328,19 +329,9 @@ function buildPlan(task,models,commander){
     else diff=stepDifficulty(s.cap,sig);
     var out={key:s.key,title:s.title,cap:s.cap,factor:s.factor,detail:s.detail,status:"pending",output:"",assigneeName:"",assigneeId:null,route:"",cost:0,score:null,reason:"",difficulty:diff,effort:"low",isHighUse:false};
     if(s.assignee==="commander"){
-      if(savings&&diff<=2){
-        var lowRanked=rankModels(s.cap,mode,models).filter(function(r){return !isHighModel(r.model);});
-        if(lowRanked.length){
-          var lp=lowRanked[0];
-          out.assigneeName=lp.model.name;out.assigneeId=lp.model.id;out.score=lp.score;out.route=ROUTES[lp.model.route]||lp.model.route||"";
-          out.cost=estimateCost(lp.model,s);out.effort=effortFor(diff,false,false);
-          out.reason="トークン節約：難易度が高くないため、指揮官（高モデル）は使わず "+lp.model.name+" が代行。"+EFFORT_LABEL[out.effort]+"に自動調整";
-          return out;
-        }
-      }
-      out.assigneeName=commander.name;out.route="Mac経由（ChatGPT・指揮官）";out.isHighUse=true;
-      out.effort=effortFor(diff,sig.critical,true);
-      out.reason="指揮官が担当（計画と統合）。難易度 "+DIFF_LABEL[diff]+" に合わせ "+EFFORT_LABEL[out.effort]+" に自動調整";
+      out.assigneeName=commander.name;out.route="Mac経由（ChatGPT・指揮官）";out.isHighUse=false;
+      out.effort="xhigh";
+      out.reason="指揮官はChat版GPT-6が担当（Chat機能はトークン消費なしの前提・ユーザー指示 2026-10-28）。インテリジェンスは常に最大で、節約モードでも代行させない";
       out.cost=Math.round(cmdCost*(s.factor||1));
       return out;
     }
@@ -374,7 +365,7 @@ function buildPlan(task,models,commander){
     return out;
   });
   var total=planSteps.reduce(function(a,s){return a+s.cost;},0);
-  var topOnly=planSteps.reduce(function(a,s){return a+Math.round(cmdCost*(s.factor||1));},0);
+  var topOnly=planSteps.reduce(function(a,s){return a+Math.round(refTopCost*(s.factor||1));},0);
   var highUse=planSteps.filter(function(s){return s.isHighUse;}).length;
   var overallDiff=planSteps.reduce(function(a,s){return Math.max(a,s.difficulty||1);},1);
   return {title:task.title,body:task.body,mode:mode,savings:savings,budget:task.budget||0,steps:planSteps,totalCost:total,topOnlyCost:topOnly,savings:topOnly-total,overBudget:!!(task.budget&&total>task.budget),highUse:highUse,overallDiff:overallDiff,createdAt:new Date().toISOString()};
@@ -489,9 +480,9 @@ function fetchOpenAiModels(){
 
 /* ===== 画面: 指揮官 ===== */
 function saveCommander(){
-  state.commander.name=document.getElementById("cmdName").value.trim()||"ChatGPT（最上位モデル）";
+  state.commander.name=document.getElementById("cmdName").value.trim()||"ChatGPT（Chat版 GPT-6・指揮官）";
   state.commander.modelId=document.getElementById("cmdModelId").value.trim();
-  state.commander.cost=parseInt(document.getElementById("cmdCost").value,10)||21;
+  var cmdCostVal=parseInt(document.getElementById("cmdCost").value,10);state.commander.cost=isNaN(cmdCostVal)?0:cmdCostVal;
   saveState();document.getElementById("cmdSaved").textContent="保存しました";
 }
 
@@ -624,10 +615,10 @@ function importData(ev){var f=ev.target.files[0];if(!f)return;var r=new FileRead
 
 /* ===== 初期化 ===== */
 function init(){
-  document.getElementById("cmdName").value=state.commander.name||"ChatGPT（最上位モデル）";
+  document.getElementById("cmdName").value=state.commander.name||"ChatGPT（Chat版 GPT-6・指揮官）";
   document.getElementById("cmdModelId").value=state.commander.modelId||"";
-  document.getElementById("cmdCost").value=(typeof state.commander.cost==="number"?state.commander.cost:21);
-  document.getElementById("scoreExplain").textContent="スコア = 得意分野の適性 x 重み + 品質 x 重み + 速度 x 重み + 安さ x 重み。重みは優先モードで変わります（バランス: 適性.45/品質.25/速度.10/安さ.20、コスパ優先: 安さ.40、品質優先: 品質.40、速度優先: 速度.40）。レビュー担当は実行担当と別のAIを優先します。トークン節約モード（初期ON）では、先にタスク文から難易度（易/中/難）を自動判定し、難易度が「難」未満のステップでは高モデル（GPT-6.1 Sol、Codex、指揮官）を候補から外します。低・中モデルで適性が60に届かない場合だけ、高モデルへ格上げします。難易度が「難」未満のタスクでは、計画・統合も指揮官を使わず中モデルが代行します（指揮官が出るのは「難」のときだけ）。思考レベル（インテリジェンス）は難易度に連動（易=低、中=中、難=高、重要語を含む難タスクの高モデルだけ最大）で、各ステップに表示され、計画のMarkdownにも書き出されます。品質・速度スコアと階層は目安で、アプリ内で編集できます。";
+  document.getElementById("cmdCost").value=(typeof state.commander.cost==="number"?state.commander.cost:0);
+  document.getElementById("scoreExplain").textContent="スコア = 得意分野の適性 x 重み + 品質 x 重み + 速度 x 重み + 安さ x 重み。重みは優先モードで変わります（バランス: 適性.45/品質.25/速度.10/安さ.20、コスパ優先: 安さ.40、品質優先: 品質.40、速度優先: 速度.40）。レビュー担当は実行担当と別のAIを優先します。トークン節約モード（初期ON）では、先にタスク文から難易度（易/中/難）を自動判定し、難易度が「難」未満のステップではAPI・Codex系の高モデル（GPT-6.1 Sol、Codex）を候補から外します。低・中モデルで適性が60に届かない場合だけ、高モデルへ格上げします。指揮官はChat版GPT-6が常に担当し、節約モードでも代行させません。思考レベル（インテリジェンス）は難易度に連動（易=低、中=中、難=高、重要語を含む難タスクの高モデルだけ最大）しますが、指揮官のステップは常に最大で、各ステップに表示され、計画のMarkdownにも書き出されます。品質・速度スコアと階層は目安で、アプリ内で編集できます。";
   var k=loadOaKey();if(k)document.getElementById("oaKey").value=k;
   renderRouteOptions("api");renderCapChecks([]);renderModels();renderProjects();renderCatalogInfo();renderRecs();
 }

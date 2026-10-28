@@ -1,12 +1,12 @@
 {
- "version": "2026-10-28.7",
+ "version": "2026-10-28.9",
  "checkedAt": "2026-10-28",
- "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（2026-10-28確認）。トークン節約ポリシー（高モデルは難易度「難」のときだけ・思考レベル自動調整）はユーザー指示で追加（2026-10-28）。利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由、その他のAIはMuse Web経由",
- "costNote": "costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。",
+ "source": "OpenAI公式 料金ページ（2026-10-28確認）／ おすすめ候補の無料範囲は各社公式（2026-10-28確認）。トークン節約ポリシー（高モデルは難易度「難」のときだけ・思考レベル自動調整）はユーザー指示で追加（2026-10-28）。利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由、その他のAIは候補表示のみ（Muse Web経由は廃止）。指揮官はChatGPTのChat機能のGPT-6に変更（ユーザー指示 2026-10-28）: Chat機能はトークン消費なしの前提で概算¥0、インテリジェンスは常に最大、節約モードでも代行させない Geminiのおすすめは3.8 Flashに更新（Google公式 2026-10-28確認）。",
+ "costNote": "costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。指揮官（Chat版GPT-6）はChat機能のためトークン消費なしの前提で概算¥0（2026-10-28ユーザー指示）。",
  "commander": {
-  "name": "ChatGPT（最上位モデル）",
-  "modelId": "gpt-6-astra",
-  "cost": 21
+  "name": "ChatGPT（Chat版 GPT-6・指揮官）",
+  "modelId": "gpt-6",
+  "cost": 0
  },
  "models": [
   {
@@ -145,14 +145,14 @@
  ],
  "recommendations": [
   {
-   "key": "gemini-3-flash",
-   "name": "Gemini 3 Flash",
+   "key": "gemini-3.8-flash",
+   "name": "Gemini 3.8 Flash",
    "provider": "Google",
-   "modelId": "gemini-3-flash-preview",
+   "modelId": "gemini-3.8-flash",
    "cost": 0,
    "quality": 85,
    "speed": 90,
-   "route": "web",
+   "route": "manual",
    "tier": "low",
    "capScores": {
     "coding": 70
@@ -164,9 +164,9 @@
     "summary",
     "reasoning"
    ],
-   "freeNote": "無料枠あり：Gemini APIに無料ティア（公式開発者ガイドで明記）。Google AI Studioでは上位のPro系も無料で試せる。入口はAI Studio / Geminiアプリ",
+   "freeNote": "無料枠あり：Gemini APIの無料ティア対象（公式料金ページでFlashの入出力が無料と明記）。有料枠は導入価格 $0.75/$3.75（100万トークン入/出、2026-12-31まで、2027-01-01から$1.50/$7.50）。入口はAI Studio / Geminiアプリ",
    "reason": "調査と画像・長文に強い無料枠。Google検索と組み合わせる調査担当として、登録済みのどのAIとも役割が被りにくい",
-   "source": "Google AI for Developers 公式（2026-10-28確認）"
+   "source": "Google AI for Developers 公式（2026-10-28確認：料金ページ・Gemini 3.8 Flash紹介・廃止一覧）"
   },
   {
    "key": "claude-haiku-5-5",
@@ -176,7 +176,7 @@
    "cost": 0,
    "quality": 84,
    "speed": 93,
-   "route": "web",
+   "route": "manual",
    "tier": "low",
    "strongCaps": [
     "summary",
@@ -196,7 +196,7 @@
    "cost": 0,
    "quality": 86,
    "speed": 80,
-   "route": "web",
+   "route": "manual",
    "tier": "mid",
    "strongCaps": [
     "reasoning",
@@ -215,7 +215,7 @@
    "cost": 0,
    "quality": 90,
    "speed": 80,
-   "route": "web",
+   "route": "manual",
    "tier": "mid",
    "capScores": {
     "math": 70
