@@ -204,8 +204,8 @@ var KEYWORDS={
 };
 function capScores(strong){var o={};CAPS.forEach(function(c){o[c.id]=strong.indexOf(c.id)>=0?90:40;});o.planning=strong.indexOf("planning")>=0?90:45;return o;}
 var BUILTIN_CATALOG={
- version:"2026-10-28.9",checkedAt:"2026-10-28",
- source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）／ 利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由。指揮官はChatGPTのChat機能のGPT-6（トークン消費なしの前提で概算¥0・インテリジェンスは常に最大）。その他のAIは候補表示のみで自動では使わない（Web経由の利用は廃止） Geminiのおすすめは3.8 Flashに更新（Google公式 2026-10-28確認）。",
+ version:"2026-10-28.10",checkedAt:"2026-10-28",
+ source:"OpenAI公式 料金ページ developers.openai.com/api/docs/pricing（2026-10-28確認）／ 利用方法はユーザー決定（2026-10-28）: ChatGPT系・Codex・OpenClaw・MuseはMac経由。指揮官はChatGPTのChat機能のGPT-6（トークン消費なしの前提で概算¥0・インテリジェンスは常に最大）。その他のAIは候補表示のみで自動では使わない（Web経由の利用は廃止） Geminiのおすすめは3.8 Flashに更新（Google公式 2026-10-28確認）。協働ループを計画に追加（ユーザー指示 2026-10-28）: 難易度「難」では各実行ステップに別AIのレビューと元の担当の修正を差し込み、中は最終レビューのみ、易はループなし。",
  costNote:"costは概算円/サブタスク。公式の100万トークン単価から、入力4000・出力2000トークン、$1=150円の仮定で換算した目安。OpenClawとMuseは基盤・プラン依存のため仮置きで、アプリ内で編集できます。指揮官（Chat版GPT-6）はChat機能のためトークン消費なしの前提で概算¥0（2026-10-28ユーザー指示）。",
  commander:{name:"ChatGPT（Chat版 GPT-6・指揮官）",modelId:"gpt-6",cost:0},
  models:[
@@ -256,10 +256,19 @@ function detectCaps(text){
   return found;
 }
 function decomposeTask(task){
-  var caps=detectCaps((task.title||"")+" "+(task.body||""));
+  var text=(task.title||"")+" "+(task.body||"");
+  var caps=detectCaps(text);
+  var sig=textSignals(text);
+  var execCaps=caps.filter(function(cap){return cap!=="review";});
+  var planDiff=1;
+  execCaps.forEach(function(cap){var d=stepDifficulty(cap,sig);if(d>planDiff)planDiff=d;});
   var steps=[{key:"plan",title:"計画・タスク分解",cap:"planning",factor:1.2,assignee:"commander",detail:"指揮官が目的・手順・担当・成果物の形を決める"}];
-  caps.filter(function(cap){return cap!=="review";}).forEach(function(cap){
+  execCaps.forEach(function(cap){
     steps.push({key:"exec-"+cap,title:CAP_LABEL[cap]+"を実行",cap:cap,factor:1,assignee:"auto",detail:CAP_LABEL[cap]+"が中心のサブタスク"});
+    if(planDiff>=3){
+      steps.push({key:"loop-review-"+cap,title:"レビュー（"+CAP_LABEL[cap]+"）",cap:"review",factor:0.5,assignee:"reviewer",loopOf:"exec-"+cap,detail:"別のAIが成果物の誤り・抜け・改善点を指摘する（協働ループ 1/2：相互に高め合う）"});
+      steps.push({key:"loop-revise-"+cap,title:"修正・改善（"+CAP_LABEL[cap]+"）",cap:cap,factor:0.6,assignee:"revise",loopOf:"exec-"+cap,detail:"レビュー指摘を元の担当が反映して成果物を改善する（協働ループ 2/2）。解消しない論点は指揮官が裁定する"});
+    }
   });
   steps.push({key:"review",title:"レビュー・検証",cap:"review",factor:0.7,assignee:"reviewer",detail:"実行担当とは別のAIが誤り・抜けをチェックする（相互検証）"});
   steps.push({key:"integrate",title:"最終統合",cap:"summary",factor:0.8,assignee:"commander",detail:"指揮官が全成果を1つの成果物に統合する"});
@@ -322,12 +331,12 @@ function buildPlan(task,models,commander){
   var steps=decomposeTask(task);
   var cmdCost=(typeof commander.cost==="number")?commander.cost:0;
   var refTopCost=cmdCost>0?cmdCost:21;
-  var execPick={};
+  var execPick={};var execModelByKey={};
   var planSteps=steps.map(function(s){
     var diff;
     if(s.key==="integrate"){diff=steps.length<=4?1:2; if(sig.hard)diff=Math.min(3,diff+1); if(sig.easy)diff=1;}
     else diff=stepDifficulty(s.cap,sig);
-    var out={key:s.key,title:s.title,cap:s.cap,factor:s.factor,detail:s.detail,status:"pending",output:"",assigneeName:"",assigneeId:null,route:"",cost:0,score:null,reason:"",difficulty:diff,effort:"low",isHighUse:false};
+    var out={key:s.key,title:s.title,cap:s.cap,factor:s.factor,detail:s.detail,status:"pending",output:"",assigneeName:"",assigneeId:null,route:"",cost:0,score:null,reason:"",difficulty:diff,effort:"low",isHighUse:false,loopOf:s.loopOf||null};
     if(s.assignee==="commander"){
       out.assigneeName=commander.name;out.route="Mac経由（ChatGPT・指揮官）";out.isHighUse=false;
       out.effort="xhigh";
@@ -335,28 +344,35 @@ function buildPlan(task,models,commander){
       out.cost=Math.round(cmdCost*(s.factor||1));
       return out;
     }
-    var pool=models.filter(function(m){return m.enabled;});
-    var gated=false,escalated=false;
-    if(savings&&diff<3&&pool.length){
-      var nonHigh=pool.filter(function(m){return !isHighModel(m);});
-      var capable=nonHigh.filter(function(m){return capScoreOf(m,s.cap)>=60;});
-      if(capable.length){pool=capable;gated=true;}else if(nonHigh.length<pool.length){escalated=true;}
-    }
-    var ranked=rankModels(s.cap,mode,pool);
-    if(diff>=3){ranked=ranked.map(function(r){return {model:r.model,score:Math.round((r.score+(isHighModel(r.model)?10:0))*10)/10};}).sort(function(a,b){return b.score-a.score||a.model.cost-b.model.cost||a.model.id-b.model.id;});}
-    if(!ranked.length){out.assigneeName="（有効なAIなし）";out.reason="登録AIを有効にしてください";return out;}
-    var pick=ranked[0];
-    if(s.assignee==="reviewer"){
-      var alt=ranked.filter(function(r){return !execPick[r.model.id];})[0];
-      if(alt)pick=alt;
-      out.reason="相互検証のため、実行担当と違うAIを優先。適性スコア "+pick.score;
+    var pick=null;
+    if(s.assignee==="revise"&&s.loopOf&&execModelByKey[s.loopOf]){
+      pick={model:execModelByKey[s.loopOf],score:null};
+      out.reason="協働ループ：レビュー指摘を受けて、元の担当がそのまま修正・改善する（担当は元の実行担当と同じ）";
     }else{
-      execPick[pick.model.id]=1;
-      out.reason="適性 ["+CAP_LABEL[s.cap]+"] スコア "+pick.score+" / 品質 "+pick.model.quality+" / 概算 "+yen(pick.model.cost)+"/回";
+      var pool=models.filter(function(m){return m.enabled;});
+      var gated=false,escalated=false;
+      if(savings&&diff<3&&pool.length){
+        var nonHigh=pool.filter(function(m){return !isHighModel(m);});
+        var capable=nonHigh.filter(function(m){return capScoreOf(m,s.cap)>=60;});
+        if(capable.length){pool=capable;gated=true;}else if(nonHigh.length<pool.length){escalated=true;}
+      }
+      var ranked=rankModels(s.cap,mode,pool);
+      if(diff>=3){ranked=ranked.map(function(r){return {model:r.model,score:Math.round((r.score+(isHighModel(r.model)?10:0))*10)/10};}).sort(function(a,b){return b.score-a.score||a.model.cost-b.model.cost||a.model.id-b.model.id;});}
+      if(!ranked.length){out.assigneeName="（有効なAIなし）";out.reason="登録AIを有効にしてください";return out;}
+      pick=ranked[0];
+      if(s.assignee==="reviewer"){
+        var alt=ranked.filter(function(r){return !execPick[r.model.id];})[0];
+        if(alt)pick=alt;
+        out.reason="相互検証のため、実行担当と違うAIを優先。適性スコア "+pick.score;
+      }else{
+        execPick[pick.model.id]=1;
+        execModelByKey[s.key]=pick.model;
+        out.reason="適性 ["+CAP_LABEL[s.cap]+"] スコア "+pick.score+" / 品質 "+pick.model.quality+" / 概算 "+yen(pick.model.cost)+"/回";
+      }
+      if(gated)out.reason+=" ／ トークン節約：難易度 "+DIFF_LABEL[diff]+" のため高モデルを除外して選択";
+      if(escalated)out.reason+=" ／ 低・中モデルでは適性が足りず、高モデルへ格上げ";
+      if(!gated&&!escalated&&diff>=3)out.reason+=" ／ 難易度が高いため高モデルを優先して選択（スコア補正あり）";
     }
-    if(gated)out.reason+=" ／ トークン節約：難易度 "+DIFF_LABEL[diff]+" のため高モデルを除外して選択";
-    if(escalated)out.reason+=" ／ 低・中モデルでは適性が足りず、高モデルへ格上げ";
-    if(!gated&&!escalated&&diff>=3)out.reason+=" ／ 難易度が高いため高モデルを優先して選択（スコア補正あり）";
     out.assigneeName=pick.model.name;out.assigneeId=pick.model.id;out.score=pick.score;out.route=ROUTES[pick.model.route]||pick.model.route||"";
     out.isHighUse=isHighModel(pick.model);
     out.effort=effortFor(diff,sig.critical,out.isHighUse);
@@ -368,10 +384,12 @@ function buildPlan(task,models,commander){
   var topOnly=planSteps.reduce(function(a,s){return a+Math.round(refTopCost*(s.factor||1));},0);
   var highUse=planSteps.filter(function(s){return s.isHighUse;}).length;
   var overallDiff=planSteps.reduce(function(a,s){return Math.max(a,s.difficulty||1);},1);
-  return {title:task.title,body:task.body,mode:mode,savings:savings,budget:task.budget||0,steps:planSteps,totalCost:total,topOnlyCost:topOnly,savings:topOnly-total,overBudget:!!(task.budget&&total>task.budget),highUse:highUse,overallDiff:overallDiff,createdAt:new Date().toISOString()};
+  var loopSteps=planSteps.filter(function(s){return s.loopOf;}).length;
+  var collabLabel=overallDiff>=3?"協働ループあり（各実行ステップにレビュー＋修正）":(overallDiff===2?"最終レビューのみ":"協働ループなし");
+  return {title:task.title,body:task.body,mode:mode,savings:savings,budget:task.budget||0,steps:planSteps,totalCost:total,topOnlyCost:topOnly,savings:topOnly-total,overBudget:!!(task.budget&&total>task.budget),highUse:highUse,overallDiff:overallDiff,loopSteps:loopSteps,collabLabel:collabLabel,createdAt:new Date().toISOString()};
 }
 function planToMarkdown(plan,commander){
-  var lines=["# "+plan.title,"","指揮官: "+commander.name+" ("+(commander.modelId||"")+")","優先モード: "+plan.mode+" / トークン節約: "+(plan.savings===false?"OFF":"ON")+" / 高モデル使用: "+(plan.highUse||0)+"/"+plan.steps.length+"ステップ","概算コスト合計: "+yen(plan.totalCost)+" (最上位モデル単独なら "+yen(plan.topOnlyCost)+", 差 "+yen(plan.savings)+")",""];
+  var lines=["# "+plan.title,"","指揮官: "+commander.name+" ("+(commander.modelId||"")+")","優先モード: "+plan.mode+" / トークン節約: "+(plan.savings===false?"OFF":"ON")+" / 高モデル使用: "+(plan.highUse||0)+"/"+plan.steps.length+"ステップ","概算コスト合計: "+yen(plan.totalCost)+" (最上位モデル単独なら "+yen(plan.topOnlyCost)+", 差 "+yen(plan.savings)+")","協働ループ: "+(plan.collabLabel||"-")+" / ループ工程 "+(plan.loopSteps||0)+"件",""];
   plan.steps.forEach(function(s,i){lines.push((i+1)+". ["+s.title+"] 担当: "+s.assigneeName+" / 渡し先: "+(s.route||"-")+" / 概算 "+yen(s.cost)+" / 難易度 "+(DIFF_LABEL[s.difficulty]||"-")+" / "+(EFFORT_LABEL[s.effort]||""));lines.push("   理由: "+s.reason);if(s.output)lines.push("   成果: "+s.output);});
   return lines.join("\n");
 }
@@ -502,7 +520,8 @@ function renderPlan(){
   v.innerHTML="<div class='row spread'><div><span class='big'>概算 "+yen(p.totalCost)+"</span> <span class='sub'>最上位モデル単独なら "+yen(p.topOnlyCost)+" / 差 "+yen(p.savings)+"</span></div>"+
     (p.overBudget?"<span class='chip warn'>予算上限を超えています</span>":"<span class='chip'>予算内</span>")+"</div>"+
     "<p class='sub'>担当の組み合わせ: "+p.steps.map(function(s){return esc(s.assigneeName);}).filter(function(x,i,a){return a.indexOf(x)===i;}).join(" + ")+"</p>"+
-    "<p class='sub'>高モデル使用: <strong>"+(p.highUse||0)+" / "+p.steps.length+"ステップ</strong>"+(p.savings===false?"（節約モードOFF）":"（節約モードON：難易度が「難」のステップと、低・中モデルで適性が足りない場合だけ高モデルを使います）")+"</p>";
+    "<p class='sub'>高モデル使用: <strong>"+(p.highUse||0)+" / "+p.steps.length+"ステップ</strong>"+(p.savings===false?"（節約モードOFF）":"（節約モードON：難易度が「難」のステップと、低・中モデルで適性が足りない場合だけ高モデルを使います）")+"</p>"+
+    "<p class='sub'>協働ループ: <strong>"+esc(p.collabLabel||"-")+"</strong>（ループ工程 "+(p.loopSteps||0)+"件。難易度「難」のとき、各実行ステップに別AIのレビューと元の担当の修正を差し込み、互いの成果を高め合います）</p>";
   document.getElementById("execSection").style.display="";
   document.getElementById("execSummary").innerHTML="<strong>"+esc(p.title)+"</strong><div class='sub'>"+p.steps.length+"ステップ</div>";
   renderSteps();updateProgress();
@@ -510,7 +529,7 @@ function renderPlan(){
 function renderSteps(){
   var el=document.getElementById("stepList");if(!currentPlan){el.innerHTML="";return;}
   el.innerHTML=currentPlan.steps.map(function(s,i){
-    return "<div class='step "+(s.status==="done"?"done":s.status==="doing"?"doing":"")+"'><div class='row spread'><strong>"+(i+1)+". "+esc(s.title)+"</strong><span><span class='chip'>"+esc(s.assigneeName)+"</span> <span class='chip'>難易度 "+esc(DIFF_LABEL[s.difficulty]||"-")+"</span> <span class='chip'>"+esc(EFFORT_LABEL[s.effort]||"")+"</span>"+(s.isHighUse?" <span class='chip'>高モデル使用</span>":"")+"</span></div>"+
+    return "<div class='step "+(s.status==="done"?"done":s.status==="doing"?"doing":"")+"'><div class='row spread'><strong>"+(i+1)+". "+esc(s.title)+"</strong><span><span class='chip'>"+esc(s.assigneeName)+"</span> <span class='chip'>難易度 "+esc(DIFF_LABEL[s.difficulty]||"-")+"</span> <span class='chip'>"+esc(EFFORT_LABEL[s.effort]||"")+"</span>"+(s.isHighUse?" <span class='chip'>高モデル使用</span>":"")+(s.loopOf?" <span class='chip'>協働ループ</span>":"")+"</span></div>"+
     "<div class='sub'>渡し先: "+esc(s.route||"-")+" / "+esc(s.detail)+" / 概算 "+yen(s.cost)+(s.score?" / スコア "+s.score:"")+"</div><div class='sub'>選択理由: "+esc(s.reason)+"</div>"+
     "<div class='row' style='margin:6px 0'><button class='small' onclick='setStepStatus("+i+",\"doing\")'>開始</button><button class='small' onclick='setStepStatus("+i+",\"done\")'>完了</button><button class='small' onclick='setStepStatus("+i+",\"pending\")'>戻す</button></div>"+
     "<textarea placeholder='このステップの成果（各AIの出力）を貼る/書く' onchange='setStepOutput("+i+",this.value)'>"+esc(s.output||"")+"</textarea></div>";
